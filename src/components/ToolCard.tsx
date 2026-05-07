@@ -11,7 +11,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { TOOL_STATUS_LABEL, type Tool } from "@/tools/toolCatalog";
-import { cn } from "@/lib/utils";
 
 interface ToolCardProps {
   tool: Tool;
@@ -24,10 +23,7 @@ export function ToolCard({ tool }: ToolCardProps) {
 
   return (
     <Card
-      className={cn(
-        "group relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-brand hover:shadow-md",
-        tool.highlight && "border-brand",
-      )}
+      className="group relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-brand hover:shadow-md"
     >
       <Link
         to={`/herramientas/${tool.slug}`}
@@ -37,10 +33,7 @@ export function ToolCard({ tool }: ToolCardProps) {
       <CardHeader className="pb-0">
         <div className="flex items-start justify-between gap-4">
           <div
-            className={cn(
-              "flex size-12 items-center justify-center rounded-lg border border-border bg-muted text-foreground transition-colors group-hover:border-brand group-hover:bg-brand group-hover:text-brand-foreground",
-              tool.highlight && "border-brand bg-brand text-brand-foreground",
-            )}
+            className="flex size-12 items-center justify-center rounded-lg border border-border bg-muted text-foreground transition-colors group-hover:border-brand group-hover:bg-brand group-hover:text-brand-foreground"
           >
             <Icon className="size-6" aria-hidden />
           </div>

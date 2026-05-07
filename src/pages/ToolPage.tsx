@@ -31,33 +31,33 @@ export function ToolPage() {
   return (
     <main className="container-page py-10 md:py-14">
       <div className="mx-auto flex max-w-5xl flex-col gap-8">
-        <Button asChild variant="ghost" size="sm" className="-ml-3 w-fit">
+        <Button asChild variant="ghost" size="sm" className="w-fit self-start">
           <Link to="/#herramientas">
             <ArrowLeft data-icon="inline-start" aria-hidden />
             Herramientas
           </Link>
         </Button>
 
-        <header className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-          <div className="flex gap-4">
+        <header className="flex w-full flex-col items-center gap-5 text-center md:flex-row md:items-start md:justify-between md:text-left">
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-4">
             <div className="flex size-16 shrink-0 items-center justify-center rounded-lg border border-border bg-muted text-brand">
               <Icon className="size-7" aria-hidden />
             </div>
-            <div>
-              <p className="ironic-tag mb-1">
+            <div className="flex min-w-0 flex-col items-center gap-2 sm:items-start">
+              <p className="ironic-tag justify-center sm:justify-start">
                 <span className="size-1.5 rounded-full bg-brand" />
                 {category?.label ?? "Herramienta PDF"}
               </p>
-              <h1 className="heading-display text-4xl md:text-5xl">
+              <h1 className="heading-display text-balance text-4xl md:text-5xl">
                 {tool.name}
               </h1>
-              <p className="mt-3 max-w-3xl text-lg leading-relaxed text-muted-foreground">
+              <p className="mt-1 max-w-3xl text-balance text-lg leading-relaxed text-muted-foreground sm:mt-3 sm:text-left">
                 {tool.description} Los archivos se procesan en tu navegador y el
                 resultado se descarga en tu equipo.
               </p>
             </div>
           </div>
-          <Badge variant="brand" className="w-fit">
+          <Badge variant="brand" className="w-fit shrink-0 self-center md:self-start">
             {TOOL_STATUS_LABEL[tool.status]}
           </Badge>
         </header>

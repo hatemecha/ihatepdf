@@ -1,4 +1,3 @@
-import { ShieldCheck } from "lucide-react";
 import { NavLink, Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -14,40 +13,38 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-background">
-      <div className="container-page flex h-20 items-center justify-between gap-6">
-        <Link to="/" aria-label="iHatePDF inicio" className="shrink-0">
+      <div className="container-page flex h-20 items-center justify-between gap-2 sm:gap-4 md:grid md:grid-cols-[auto_1fr_auto] md:items-center md:justify-normal">
+        <Link
+          to="/"
+          aria-label="iHatePDF inicio"
+          className="min-w-0 shrink md:justify-self-start"
+        >
           <Logo />
         </Link>
 
-        <nav className="hidden items-center gap-1 md:flex">
-          {visibleCategories.map((category) => (
-            <NavLink
-              key={category.id}
-              to={`/#cat-${category.id}`}
-              className={({ isActive }) =>
-                cn(
-                  "rounded-full px-4 py-2 text-base font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-                  isActive && "text-foreground",
-                )
-              }
-            >
-              {category.label}
-            </NavLink>
-          ))}
-          <NavLink
-            to="/privacidad"
-            className={({ isActive }) =>
-              cn(
-                "rounded-full px-4 py-2 text-base font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-                isActive && "text-foreground",
-              )
-            }
-          >
-            Privacidad
-          </NavLink>
+        <nav
+          className="hidden min-w-0 md:flex md:justify-self-center"
+          aria-label="Categorias"
+        >
+          <div className="flex items-center gap-1">
+            {visibleCategories.map((category) => (
+              <NavLink
+                key={category.id}
+                to={`/#cat-${category.id}`}
+                className={({ isActive }) =>
+                  cn(
+                    "rounded-full px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:px-4 lg:text-base",
+                    isActive && "text-foreground",
+                  )
+                }
+              >
+                {category.label}
+              </NavLink>
+            ))}
+          </div>
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-2 md:justify-self-end">
           <Button
             asChild
             variant="ghost"
@@ -60,10 +57,7 @@ export function SiteHeader() {
             </a>
           </Button>
           <Button asChild variant="brand" size="sm">
-            <Link to="/privacidad">
-              <ShieldCheck />
-              Privacidad
-            </Link>
+            <Link to="/#herramientas">Herramientas</Link>
           </Button>
         </div>
       </div>

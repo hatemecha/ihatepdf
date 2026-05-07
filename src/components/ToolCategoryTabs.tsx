@@ -1,13 +1,15 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToolCard } from "@/components/ToolCard";
 import {
-  TOOLS,
   getVisibleToolCategories,
   getToolsByCategory,
   type ToolCategoryId,
 } from "@/tools/toolCatalog";
+import { cn } from "@/lib/utils";
 
 const ALL_VALUE: ToolCategoryId | "all" = "all";
+
+const categoryTabsTriggerClassName = "rounded-full";
 
 export function ToolCategoryTabs() {
   const visibleCategories = getVisibleToolCategories();
@@ -17,18 +19,21 @@ export function ToolCategoryTabs() {
 
   return (
     <Tabs defaultValue={ALL_VALUE} className="w-full">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-3xl font-bold">Herramientas disponibles</h2>
-          <p className="mt-1 text-base text-muted-foreground">
-            Solo mostramos herramientas que ya se pueden usar.
-          </p>
-        </div>
-        <div className="overflow-x-auto">
-          <TabsList className="h-auto flex-wrap gap-1 rounded-full">
-            <TabsTrigger value={ALL_VALUE}>Todas</TabsTrigger>
+      <div className="mb-10 flex justify-center px-1">
+        <div className="max-w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <TabsList className="h-auto min-h-11 flex-wrap justify-center gap-1 rounded-full">
+            <TabsTrigger
+              value={ALL_VALUE}
+              className={categoryTabsTriggerClassName}
+            >
+              Todas
+            </TabsTrigger>
             {visibleCategories.map((category) => (
-              <TabsTrigger key={category.id} value={category.id}>
+              <TabsTrigger
+                key={category.id}
+                value={category.id}
+                className={categoryTabsTriggerClassName}
+              >
                 {category.label}
               </TabsTrigger>
             ))}
@@ -36,23 +41,26 @@ export function ToolCategoryTabs() {
         </div>
       </div>
 
-      <TabsContent value={ALL_VALUE}>
-        {visibleCategories.map((category) => {
+      <TabsContent value={ALL_VALUE} className="mt-10">
+        {visibleCategories.map((category, index) => {
           const tools = getToolsByCategory(category.id);
           if (tools.length === 0) return null;
           return (
             <section
               key={category.id}
               id={`cat-${category.id}`}
-              className="scroll-mt-24 pt-8 first:pt-0"
+              className={cn(
+                "scroll-mt-24 pb-12 last:pb-0",
+                index === 0 ? "pt-0" : "mt-14 border-t border-border pt-14",
+              )}
             >
-              <header className="mb-5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <header className="mb-8 space-y-2 text-center">
                 <h3 className="text-xl font-semibold">{category.label}</h3>
-                <p className="text-base text-muted-foreground">
+                <p className="mx-auto max-w-2xl text-balance text-base text-muted-foreground">
                   {category.description}
                 </p>
               </header>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-1 justify-items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {tools.map((tool) => (
                   <ToolCard key={tool.slug} tool={tool} />
                 ))}
@@ -61,7 +69,7 @@ export function ToolCategoryTabs() {
           );
         })}
         {!hasAnyTools ? (
-          <p className="text-base text-muted-foreground">
+          <p className="text-center text-base text-muted-foreground">
             Todavia no hay herramientas disponibles.
           </p>
         ) : null}
@@ -70,14 +78,18 @@ export function ToolCategoryTabs() {
       {visibleCategories.map((category) => {
         const tools = getToolsByCategory(category.id);
         return (
-          <TabsContent key={category.id} value={category.id}>
-            <header className="mb-5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <TabsContent
+            key={category.id}
+            value={category.id}
+            className="mt-10"
+          >
+            <header className="mb-8 space-y-2 text-center">
               <h3 className="text-xl font-semibold">{category.label}</h3>
-              <p className="text-base text-muted-foreground">
+              <p className="mx-auto max-w-2xl text-balance text-base text-muted-foreground">
                 {category.description}
               </p>
             </header>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 justify-items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {tools.map((tool) => (
                 <ToolCard key={tool.slug} tool={tool} />
               ))}
