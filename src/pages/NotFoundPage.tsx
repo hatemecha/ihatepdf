@@ -1,0 +1,26 @@
+import { Link } from "react-router-dom";
+
+import { Button } from "@/components/ui/button";
+
+export function NotFoundPage() {
+  return (
+    <main className="container-page flex min-h-[60vh] flex-col items-center justify-center gap-4 py-20 text-center">
+      <p className="font-mono text-base uppercase text-brand">404</p>
+      <h1 className="heading-display text-4xl md:text-5xl">
+        No odiamos esa pagina, simplemente no existe.
+      </h1>
+      <p className="max-w-md text-muted-foreground">
+        La ruta que pediste no esta en iHatePDF. Probablemente sea una
+        herramienta que todavia no llega o un link viejo.
+      </p>
+      <div className="flex gap-2">
+        <Button asChild variant="brand">
+          <Link to="/">Ir al inicio</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link to="/privacidad">Ver privacidad</Link>
+        </Button>
+      </div>
+    </main>
+  );
+}
