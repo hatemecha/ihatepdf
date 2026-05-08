@@ -2,8 +2,7 @@ import { Link } from "react-router-dom";
 
 import { GitHubIcon } from "@/components/icons/GitHubIcon";
 import { Logo } from "@/components/Logo";
-
-const REPO_URL = "https://github.com/ihatepdf/ihatepdf";
+import { REPO_URL } from "@/lib/site";
 
 export function SiteFooter() {
   return (

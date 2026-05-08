@@ -1,7 +1,12 @@
 {
   "name": "ihatepdf",
-  "private": true,
+  "private": false,
   "version": "0.1.0",
+  "homepage": "https://hatemecha.github.io/iHatePDF/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hatemecha/iHatePDF.git"
+  },
   "type": "module",
   "description": "Herramientas PDF privadas que funcionan desde una web.",
   "scripts": {

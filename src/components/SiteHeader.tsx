@@ -4,9 +4,8 @@ import { Button } from "@/components/ui/button";
 import { GitHubIcon } from "@/components/icons/GitHubIcon";
 import { Logo } from "@/components/Logo";
 import { getVisibleToolCategories } from "@/tools/toolCatalog";
+import { REPO_URL } from "@/lib/site";
 import { cn } from "@/lib/utils";
-
-const REPO_URL = "https://github.com/ihatepdf/ihatepdf";
 
 export function SiteHeader() {
   const visibleCategories = getVisibleToolCategories();
