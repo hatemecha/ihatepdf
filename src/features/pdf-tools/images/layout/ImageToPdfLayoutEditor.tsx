@@ -96,7 +96,7 @@ function createAssetId(file: File): string {
     .slice(2, 8)}`;
 }
 
-const MIN_PAGE_DISPLAY_HEIGHT = 320;
+const MIN_PAGE_FIT_HEIGHT = 180;
 
 const ZOOM_MIN = 50;
 const ZOOM_MAX = 200;
@@ -107,6 +107,13 @@ function clampZoom(value: number): number {
 }
 
 export function ImageToPdfLayoutEditor({
+  imageImport,
+  onImageImportConsumed,
+}: ImageToPdfLayoutEditorProps = {}) {
+  return useImageToPdfLayoutEditor({ imageImport, onImageImportConsumed });
+}
+
+function useImageToPdfLayoutEditor({
   imageImport,
   onImageImportConsumed,
 }: ImageToPdfLayoutEditorProps = {}) {
@@ -236,14 +243,14 @@ export function ImageToPdfLayoutEditor({
   }, []);
 
   const baseFitScale = useMemo(() => {
-    const horizontalPadding = 48;
-    const verticalPadding = 48;
+    const horizontalPadding = containerSize.width < 640 ? 32 : 48;
+    const verticalPadding = containerSize.height < 360 ? 32 : 48;
     const availableWidth = Math.max(
       120,
       containerSize.width - horizontalPadding,
     );
     const availableHeight = Math.max(
-      MIN_PAGE_DISPLAY_HEIGHT,
+      MIN_PAGE_FIT_HEIGHT,
       containerSize.height - verticalPadding,
     );
 
@@ -344,16 +351,21 @@ export function ImageToPdfLayoutEditor({
         }
       }
 
-      const workerImages: WorkerLayoutImageAsset[] = await Promise.all(
-        state.images
-          .filter((image) => referencedImageIds.has(image.id))
-          .map(async (image) => ({
-            id: image.id,
-            name: image.name,
-            mimeType: image.mimeType,
-            buffer: await image.file.arrayBuffer(),
-          })),
+      const workerImagePromises = state.images.flatMap((image) =>
+        referencedImageIds.has(image.id)
+          ? [
+              image.file.arrayBuffer().then((buffer) => ({
+                id: image.id,
+                name: image.name,
+                mimeType: image.mimeType,
+                buffer,
+              })),
+            ]
+          : [],
       );
+
+      const workerImages: WorkerLayoutImageAsset[] =
+        await Promise.all(workerImagePromises);
 
       const workerPages: LayoutPagePayload[] = state.pages.map((page) => ({
         width: page.width,
@@ -448,7 +460,7 @@ export function ImageToPdfLayoutEditor({
 
       <div
         className={cn(
-          "mt-3 grid min-h-0 min-w-0 flex-1 gap-4 overflow-hidden lg:gap-0 lg:grid-rows-1 lg:auto-rows-[minmax(0,1fr)] lg:items-stretch",
+          "relative mt-2 flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden lg:grid lg:gap-0 lg:grid-rows-1 lg:auto-rows-[minmax(0,1fr)] lg:items-stretch",
           showProperties
             ? "lg:grid-cols-[220px_minmax(0,1fr)_240px]"
             : "lg:grid-cols-[220px_minmax(0,1fr)]",
@@ -464,13 +476,14 @@ export function ImageToPdfLayoutEditor({
 
         <div
           ref={canvasContainerRef}
-          className="relative h-full min-h-[300px] min-w-0 overflow-auto rounded-lg bg-[radial-gradient(circle_at_top,oklch(0.21_0_0),oklch(0.13_0_0)_60%)] lg:min-h-0 lg:rounded-none lg:border-x lg:border-border"
+          className="relative order-2 min-h-0 min-w-0 flex-1 overflow-auto rounded-md bg-[radial-gradient(circle_at_top,oklch(0.21_0_0),oklch(0.13_0_0)_60%)] lg:order-none lg:h-full lg:rounded-none lg:border-x lg:border-border"
         >
           <div
             className={cn(
-              "flex min-h-full w-full flex-col items-center p-4 sm:p-6",
+              "flex min-h-full w-full flex-col items-center p-3 sm:p-5 lg:p-6",
+              showProperties ? "pb-52 lg:pb-6" : null,
               state.images.length === 0
-                ? "gap-8 pb-10 pt-2 justify-start"
+                ? "gap-6 pb-8 pt-2 justify-start"
                 : "min-h-0 justify-start",
             )}
           >
@@ -484,7 +497,9 @@ export function ImageToPdfLayoutEditor({
             <div
               className={cn(
                 "flex w-full min-w-0 justify-center",
-                state.images.length === 0 ? "shrink-0" : "min-h-0 flex-1 items-center",
+                state.images.length === 0
+                  ? "shrink-0"
+                  : "min-h-0 flex-1 items-center",
               )}
             >
               <InteractivePage
@@ -578,148 +593,160 @@ function EditorToolbar({
   onExport,
 }: EditorToolbarProps) {
   return (
-    <div className="tool-bar shrink-0 border-b border-border">
-      <ol className="flex max-w-full items-center gap-1 overflow-x-auto">
-        {pages.map((page, index) => {
-          const isActive = page.id === activePageId;
-          return (
-            <li key={page.id}>
-              <div
-                className={cn(
-                  "flex items-center rounded-full text-xs transition-colors",
-                  isActive
-                    ? "bg-brand/15 text-foreground ring-1 ring-inset ring-brand/40"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
-              >
-                <button
-                  type="button"
-                  className="px-2.5 py-1 text-[11px] font-semibold tabular-nums"
-                  onClick={() => onActivatePage(page.id)}
-                >
-                  {index + 1}
-                </button>
-                {pages.length > 1 ? (
-                  <button
-                    type="button"
-                    aria-label={`Eliminar página ${index + 1}`}
-                    className="px-1.5 py-1 text-muted-foreground hover:text-destructive"
-                    onClick={() => onRemovePage(page.id)}
+    <div className="shrink-0 border-b border-border py-2">
+      <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 lg:flex lg:flex-wrap">
+        <div className="min-w-0 max-w-28 sm:max-w-40 lg:max-w-none lg:flex-1">
+          <ol className="flex min-w-0 items-center gap-1 overflow-x-auto">
+            {pages.map((page, index) => {
+              const isActive = page.id === activePageId;
+              return (
+                <li key={page.id} className="shrink-0">
+                  <div
+                    className={cn(
+                      "flex items-center rounded-full text-xs transition-colors",
+                      isActive
+                        ? "bg-brand/15 text-foreground ring-1 ring-inset ring-brand/40"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
                   >
-                    <X className="size-3" aria-hidden />
-                  </button>
-                ) : null}
-              </div>
+                    <button
+                      type="button"
+                      className="px-2.5 py-1 text-[11px] font-semibold tabular-nums"
+                      onClick={() => onActivatePage(page.id)}
+                    >
+                      {index + 1}
+                    </button>
+                    {pages.length > 1 ? (
+                      <button
+                        type="button"
+                        aria-label={`Eliminar página ${index + 1}`}
+                        className="px-1.5 py-1 text-muted-foreground hover:text-destructive"
+                        onClick={() => onRemovePage(page.id)}
+                      >
+                        <X className="size-3" aria-hidden />
+                      </button>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
+            <li>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="size-7 rounded-full p-0"
+                aria-label="Nueva página"
+                onClick={onAddPage}
+                disabled={isProcessing}
+              >
+                <Plus className="size-3.5" aria-hidden />
+              </Button>
             </li>
-          );
-        })}
-        <li>
+          </ol>
+        </div>
+
+        <div className="flex min-w-0 items-center gap-2 overflow-x-auto lg:flex-none lg:overflow-visible">
+          <span className="tool-divider" aria-hidden />
+
+          <select
+            className="h-8 w-32 shrink-0 rounded-md border border-border bg-background px-2.5 text-xs font-medium hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-40 lg:w-auto"
+            value={activePage.presetId}
+            onChange={(event) =>
+              onChangePreset(event.target.value as PagePresetId)
+            }
+            aria-label="Tamaño de página"
+          >
+            {PAGE_PRESETS.map((preset) => (
+              <option key={preset.id} value={preset.id}>
+                {preset.label}
+              </option>
+            ))}
+          </select>
+
+          <span className="hidden text-[11px] tabular-nums text-muted-foreground sm:inline">
+            {Math.round(activePage.width)} × {Math.round(activePage.height)} pt
+          </span>
+
+          <span className="tool-divider" aria-hidden />
+
+          <div className="hidden h-8 shrink-0 items-center rounded-full bg-muted min-[520px]:flex">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="size-8 rounded-full p-0"
+              aria-label="Alejar lienzo"
+              disabled={isProcessing || zoomPercent <= ZOOM_MIN}
+              onClick={onZoomOut}
+            >
+              <Minus className="size-3.5" aria-hidden />
+            </Button>
+            <span className="min-w-[3.1rem] px-1 text-center text-[11px] tabular-nums text-muted-foreground">
+              {zoomPercent}%
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="size-8 rounded-full p-0"
+              aria-label="Acercar lienzo"
+              disabled={isProcessing || zoomPercent >= ZOOM_MAX}
+              onClick={onZoomIn}
+            >
+              <Plus className="size-3.5" aria-hidden />
+            </Button>
+          </div>
+
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="size-7 rounded-full p-0"
-            aria-label="Nueva página"
-            onClick={onAddPage}
-            disabled={isProcessing}
+            className="hidden h-8 shrink-0 px-2 text-[11px] text-muted-foreground min-[520px]:inline-flex"
+            title="Restablecer zoom al encaje en el contenedor"
+            disabled={isProcessing || zoomPercent === 100}
+            onClick={onZoomReset}
           >
-            <Plus className="size-3.5" aria-hidden />
+            Encajar
           </Button>
-        </li>
-      </ol>
+        </div>
 
-      <span className="tool-divider" aria-hidden />
+        <div className="flex shrink-0 items-center justify-end gap-2 lg:ml-auto">
+          <button
+            type="button"
+            onClick={onToggleSnap}
+            title={snapEnabled ? "Guías activas" : "Guías libres"}
+            aria-pressed={snapEnabled}
+            className={cn(
+              "inline-flex h-8 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors",
+              snapEnabled
+                ? "bg-foreground/10 text-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <Magnet className="size-3.5" aria-hidden />
+            <span className="hidden sm:inline">Guías</span>
+          </button>
 
-      <select
-        className="h-8 rounded-md border border-border bg-background px-2.5 text-xs font-medium hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        value={activePage.presetId}
-        onChange={(event) => onChangePreset(event.target.value as PagePresetId)}
-        aria-label="Tamaño de página"
-      >
-        {PAGE_PRESETS.map((preset) => (
-          <option key={preset.id} value={preset.id}>
-            {preset.label}
-          </option>
-        ))}
-      </select>
-
-      <span className="hidden text-[11px] tabular-nums text-muted-foreground sm:inline">
-        {Math.round(activePage.width)} × {Math.round(activePage.height)} pt
-      </span>
-
-      <span className="tool-divider" aria-hidden />
-
-      <div className="flex h-7 items-center rounded-full bg-muted">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="size-7 rounded-full p-0"
-          aria-label="Alejar lienzo"
-          disabled={isProcessing || zoomPercent <= ZOOM_MIN}
-          onClick={onZoomOut}
-        >
-          <Minus className="size-3.5" aria-hidden />
-        </Button>
-        <span className="min-w-[2.75rem] px-1 text-center text-[11px] tabular-nums text-muted-foreground">
-          {zoomPercent}%
-        </span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="size-7 rounded-full p-0"
-          aria-label="Acercar lienzo"
-          disabled={isProcessing || zoomPercent >= ZOOM_MAX}
-          onClick={onZoomIn}
-        >
-          <Plus className="size-3.5" aria-hidden />
-        </Button>
-      </div>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="hidden h-7 px-2 text-[11px] text-muted-foreground sm:inline-flex"
-        title="Restablecer zoom al encaje en el contenedor"
-        disabled={isProcessing || zoomPercent === 100}
-        onClick={onZoomReset}
-      >
-        Encajar
-      </Button>
-
-      <div className="ml-auto flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onToggleSnap}
-          title={snapEnabled ? "Guías activas" : "Guías libres"}
-          aria-pressed={snapEnabled}
-          className={cn(
-            "inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors",
-            snapEnabled
-              ? "bg-foreground/10 text-foreground"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground",
-          )}
-        >
-          <Magnet className="size-3.5" aria-hidden />
-          <span className="hidden sm:inline">Guías</span>
-        </button>
-
-        <Button
-          type="button"
-          variant="brand"
-          size="sm"
-          className="h-8 rounded-full px-3"
-          onClick={onExport}
-          disabled={isProcessing || !canExport}
-        >
-          {isProcessing ? (
-            <Loader2 className="size-3.5 animate-spin" aria-hidden />
-          ) : (
-            <Download className="size-3.5" aria-hidden />
-          )}
-          <span>{isProcessing ? "Generando" : "Exportar"}</span>
-        </Button>
+          <Button
+            type="button"
+            variant="brand"
+            size="sm"
+            className="h-8 w-10 rounded-full px-0 min-[520px]:w-auto min-[520px]:px-3"
+            aria-label={isProcessing ? "Generando PDF" : "Exportar PDF"}
+            onClick={onExport}
+            disabled={isProcessing || !canExport}
+          >
+            {isProcessing ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Download className="size-3.5" aria-hidden />
+            )}
+            <span className="hidden min-[520px]:inline">
+              {isProcessing ? "Generando" : "Exportar"}
+            </span>
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -742,8 +769,8 @@ function ImagesPanel({
 }: ImagesPanelProps) {
   const isEmpty = images.length === 0;
   return (
-    <aside className="flex min-h-0 min-w-0 shrink-0 flex-col gap-2 lg:h-full lg:gap-3 lg:overflow-hidden lg:pr-4">
-      <div className="flex shrink-0 items-center gap-3 lg:justify-between lg:items-start">
+    <aside className="order-1 flex min-h-0 min-w-0 shrink-0 items-center gap-2 border-b border-border pb-2 lg:order-none lg:h-full lg:flex-col lg:items-stretch lg:gap-3 lg:overflow-hidden lg:border-b-0 lg:pb-0 lg:pr-4">
+      <div className="flex shrink-0 items-center gap-2 lg:justify-between lg:items-start">
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           <span>Imágenes</span>
           <span className="rounded-full bg-muted px-1.5 py-0.5 tabular-nums text-[10px] text-foreground">
@@ -770,17 +797,14 @@ function ImagesPanel({
       ) : null}
 
       {isEmpty ? null : (
-        <ul className="flex min-h-0 flex-row gap-1.5 overflow-x-auto lg:flex-1 lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto">
+        <ul className="flex max-h-14 min-h-0 min-w-0 flex-1 flex-row gap-1.5 overflow-x-auto pb-1 lg:max-h-none lg:flex-1 lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto lg:pb-0">
           {images.map((asset) => (
-            <li
-              key={asset.id}
-              className="group shrink-0 lg:shrink"
-            >
+            <li key={asset.id} className="group shrink-0 lg:shrink">
               <div
                 role="button"
                 tabIndex={0}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md p-1.5 text-left transition-colors hover:bg-muted active:cursor-grabbing",
+                  "flex min-w-28 items-center gap-2 rounded-md p-1.5 text-left transition-colors hover:bg-muted active:cursor-grabbing lg:w-full",
                   "cursor-grab",
                   isProcessing ? "pointer-events-none opacity-50" : null,
                 )}
@@ -824,20 +848,36 @@ function ImagesPanel({
                     {formatFileSize(asset.file.size)}
                   </span>
                 </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="hidden size-6 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 lg:inline-flex"
-                  aria-label={`Quitar ${asset.name}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onRemoveImage(asset.id);
-                  }}
-                  disabled={isProcessing}
-                >
-                  <X className="size-3.5" />
-                </Button>
+                <div className="ml-auto flex shrink-0 items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="inline-flex size-7 lg:hidden"
+                    aria-label={`Agregar ${asset.name} a la página`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onPlaceImage(asset.id);
+                    }}
+                    disabled={isProcessing}
+                  >
+                    <Plus className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 shrink-0 opacity-100 transition-opacity lg:size-6 lg:opacity-0 lg:group-hover:opacity-100 lg:focus-visible:opacity-100"
+                    aria-label={`Quitar ${asset.name}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onRemoveImage(asset.id);
+                    }}
+                    disabled={isProcessing}
+                  >
+                    <X className="size-3.5" />
+                  </Button>
+                </div>
               </div>
             </li>
           ))}
@@ -865,7 +905,7 @@ function PropertiesPanel({
   onClose,
 }: PropertiesPanelProps) {
   return (
-    <aside className="flex h-full min-h-0 min-w-0 max-w-full flex-col gap-4 border-t border-border pt-4 lg:overflow-y-auto lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
+    <aside className="absolute inset-x-2 bottom-2 z-20 order-3 flex max-h-[min(10rem,22dvh)] min-h-0 min-w-0 max-w-full flex-col gap-3 overflow-y-auto rounded-md border border-border bg-background/95 p-3 shadow-2xl backdrop-blur lg:static lg:inset-auto lg:h-full lg:max-h-none lg:gap-4 lg:overflow-y-auto lg:rounded-none lg:border-x-0 lg:border-y-0 lg:border-l lg:bg-transparent lg:p-0 lg:pl-4 lg:shadow-none lg:backdrop-blur-none">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           Propiedades

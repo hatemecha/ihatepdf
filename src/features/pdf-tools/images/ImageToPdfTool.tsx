@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -8,11 +8,11 @@ import {
   type ImageToPdfLayoutImageImport,
 } from "./layout/ImageToPdfLayoutEditor";
 
-type ImageToPdfMode = "simple" | "layout";
+export type ImageToPdfMode = "simple" | "layout";
 
 const WORKSPACE_STORAGE_KEY = "ihatepdf-image-to-pdf-workspace-v1";
 
-function readStoredWorkspaceMode(): ImageToPdfMode {
+export function readStoredWorkspaceMode(): ImageToPdfMode {
   try {
     const value = sessionStorage.getItem(WORKSPACE_STORAGE_KEY);
     if (value === "simple" || value === "layout") {
@@ -24,7 +24,7 @@ function readStoredWorkspaceMode(): ImageToPdfMode {
   return "simple";
 }
 
-function persistWorkspaceMode(next: ImageToPdfMode) {
+export function persistWorkspaceMode(next: ImageToPdfMode) {
   try {
     sessionStorage.setItem(WORKSPACE_STORAGE_KEY, next);
   } catch {
@@ -33,77 +33,33 @@ function persistWorkspaceMode(next: ImageToPdfMode) {
 }
 
 interface ImageToPdfToolProps {
-  /**
-   * The Image→PDF tool exposes a Simple/Layout switcher that should live in
-   * the global tool header instead of a stacked toolbar inside the workspace.
-   * The host page provides this callback to receive the actions node.
-   */
-  onHeaderActionsChange?: (node: ReactNode) => void;
+  mode: ImageToPdfMode;
+  layoutImageImport: ImageToPdfLayoutImageImport | null;
+  onLayoutImportConsumed: () => void;
+  onRegisterSimpleFiles: (files: File[]) => void;
+  onSwitchToSimple: () => void;
 }
 
-export function ImageToPdfTool({ onHeaderActionsChange }: ImageToPdfToolProps = {}) {
-  const [mode, setMode] = useState<ImageToPdfMode>(() =>
-    readStoredWorkspaceMode(),
-  );
-  const [layoutImageImport, setLayoutImageImport] =
-    useState<ImageToPdfLayoutImageImport | null>(null);
-  const importTokenRef = useRef(0);
-  const simpleFilesRef = useRef<File[]>([]);
-
-  const registerSimpleFiles = useCallback((files: File[]) => {
-    simpleFilesRef.current = files;
-  }, []);
-
-  const goToSimple = useCallback(() => {
-    persistWorkspaceMode("simple");
-    setLayoutImageImport(null);
-    setMode("simple");
-  }, []);
-
-  const goToLayout = useCallback(() => {
-    persistWorkspaceMode("layout");
-    const files = [...simpleFilesRef.current];
-    if (files.length > 0) {
-      importTokenRef.current += 1;
-      setLayoutImageImport({
-        token: importTokenRef.current,
-        files,
-      });
-    } else {
-      setLayoutImageImport(null);
-    }
-    setMode("layout");
-  }, []);
-
-  const consumeLayoutImport = useCallback(() => {
-    setLayoutImageImport(null);
-  }, []);
-
-  useEffect(() => {
-    if (!onHeaderActionsChange) {
-      return;
-    }
-    onHeaderActionsChange(
-      <ModeSwitch
-        mode={mode}
-        onSimple={goToSimple}
-        onLayout={goToLayout}
-      />,
-    );
-    return () => onHeaderActionsChange(null);
-  }, [goToLayout, goToSimple, mode, onHeaderActionsChange]);
-
+export function ImageToPdfTool({
+  mode,
+  layoutImageImport,
+  onLayoutImportConsumed,
+  onRegisterSimpleFiles,
+  onSwitchToSimple,
+}: ImageToPdfToolProps) {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="min-h-0 flex-1 overflow-hidden">
         {mode === "layout" ? (
           <ImageToPdfLayoutEditor
             imageImport={layoutImageImport}
-            onImageImportConsumed={consumeLayoutImport}
-            onSwitchToSimple={goToSimple}
+            onImageImportConsumed={onLayoutImportConsumed}
+            onSwitchToSimple={onSwitchToSimple}
           />
         ) : (
-          <ImageToPdfSimpleMode registerFilesForLayout={registerSimpleFiles} />
+          <ImageToPdfSimpleMode
+            registerFilesForLayout={onRegisterSimpleFiles}
+          />
         )}
       </div>
     </div>
@@ -116,7 +72,7 @@ interface ModeSwitchProps {
   onLayout: () => void;
 }
 
-function ModeSwitch({ mode, onSimple, onLayout }: ModeSwitchProps) {
+export function ModeSwitch({ mode, onSimple, onLayout }: ModeSwitchProps) {
   return (
     <div
       className="inline-flex items-center rounded-full bg-muted p-0.5 text-xs"

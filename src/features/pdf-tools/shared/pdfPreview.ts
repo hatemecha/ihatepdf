@@ -1,8 +1,4 @@
-import type {
-  PDFDocumentProxy,
-  PDFPageProxy,
-  RenderTask,
-} from "pdfjs-dist";
+import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 
 const PDFJS_WORKER_SRC = new URL(
   "pdfjs-dist/build/pdf.worker.mjs",
@@ -22,8 +18,7 @@ async function getPdfjs(): Promise<typeof import("pdfjs-dist")> {
 }
 
 export async function loadPdfDocument(file: File): Promise<PDFDocumentProxy> {
-  const pdfjs = await getPdfjs();
-  const buffer = await file.arrayBuffer();
+  const [pdfjs, buffer] = await Promise.all([getPdfjs(), file.arrayBuffer()]);
   return pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
 }
 
@@ -79,8 +74,9 @@ export function renderPdfPageToCanvas({
 
     canvas.width = outputWidth;
     canvas.height = outputHeight;
-    canvas.style.width = `${Math.ceil(viewport.width)}px`;
-    canvas.style.height = `${Math.ceil(viewport.height)}px`;
+    canvas.style.cssText = `width: ${Math.ceil(
+      viewport.width,
+    )}px; height: ${Math.ceil(viewport.height)}px;`;
 
     const context = canvas.getContext("2d");
     if (!context) {

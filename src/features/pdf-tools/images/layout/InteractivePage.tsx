@@ -85,6 +85,28 @@ export function InteractivePage({
   onUpdateElement,
   onDropImageFromLibrary,
 }: InteractivePageProps) {
+  return useInteractivePage({
+    page,
+    images,
+    selectedElementId,
+    snapEnabled,
+    displayScale,
+    onSelectElement,
+    onUpdateElement,
+    onDropImageFromLibrary,
+  });
+}
+
+function useInteractivePage({
+  page,
+  images,
+  selectedElementId,
+  snapEnabled,
+  displayScale,
+  onSelectElement,
+  onUpdateElement,
+  onDropImageFromLibrary,
+}: InteractivePageProps) {
   const pageRef = useRef<HTMLDivElement>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const [activeGuides, setActiveGuides] = useState<SnapGuide[]>([]);
@@ -97,7 +119,10 @@ export function InteractivePage({
     return map;
   }, [images]);
 
-  function getPagePointFromClient(clientX: number, clientY: number): {
+  function getPagePointFromClient(
+    clientX: number,
+    clientY: number,
+  ): {
     x: number;
     y: number;
   } {
@@ -494,9 +519,9 @@ export function InteractivePage({
         );
       })}
 
-      {activeGuides.map((guide, index) => (
+      {activeGuides.map((guide) => (
         <div
-          key={`${guide.orientation}-${index}`}
+          key={`${guide.orientation}-${guide.position}`}
           className="pointer-events-none absolute"
           style={
             guide.orientation === "vertical"

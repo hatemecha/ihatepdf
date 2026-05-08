@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import JSZip from "jszip";
-import { CheckSquare, Download, FileImage, Loader2, Square } from "lucide-react";
+import {
+  CheckSquare,
+  Download,
+  FileImage,
+  Loader2,
+  Square,
+} from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -19,6 +25,11 @@ interface DownloadResult {
 
 const PNG_MIME_TYPE = "image/png";
 
+interface RenderedImagePage {
+  fileName: string;
+  imageBlob: Blob;
+}
+
 function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
@@ -35,7 +46,38 @@ function createInitialPageOrder(pageCount: number): number[] {
   return Array.from({ length: pageCount }, (_, index) => index + 1);
 }
 
+async function renderPdfPageAsImage(
+  pdf: Awaited<ReturnType<typeof loadPdfDocument>>,
+  pageNumber: number,
+): Promise<RenderedImagePage> {
+  const page = await pdf.getPage(pageNumber);
+  const viewport = page.getViewport({ scale: 2 });
+  const canvas = document.createElement("canvas");
+  const canvasContext = canvas.getContext("2d");
+  if (!canvasContext) {
+    throw new Error("El navegador no pudo crear el canvas de exportación.");
+  }
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+
+  try {
+    await page.render({ canvas, canvasContext, viewport }).promise;
+    return {
+      fileName: `page-${String(pageNumber).padStart(3, "0")}.png`,
+      imageBlob: await canvasToPngBlob(canvas),
+    };
+  } finally {
+    canvas.width = 0;
+    canvas.height = 0;
+    page.cleanup();
+  }
+}
+
 export function PdfToImagesTool() {
+  return usePdfToImagesTool();
+}
+
+function usePdfToImagesTool() {
   const resultUrlRef = useRef<string | null>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -149,28 +191,22 @@ export function PdfToImagesTool() {
     const pdf = await loadPdfDocument(selectedFile);
     try {
       const zip = new JSZip();
-      const sortedPages = [...selectedPages].sort((a, b) => a - b);
+      const sortedPages = Array.from(selectedPages).toSorted((a, b) => a - b);
+      let completedPages = 0;
 
-      for (const [index, pageNumber] of sortedPages.entries()) {
-        setProgressLabel(
-          `Renderizando página ${index + 1} de ${sortedPages.length}`,
-        );
-        const page = await pdf.getPage(pageNumber);
-        const viewport = page.getViewport({ scale: 2 });
-        const canvas = document.createElement("canvas");
-        const canvasContext = canvas.getContext("2d");
-        if (!canvasContext) {
-          throw new Error("El navegador no pudo crear el canvas de exportación.");
-        }
-        canvas.width = Math.ceil(viewport.width);
-        canvas.height = Math.ceil(viewport.height);
+      const renderedPages = await Promise.all(
+        sortedPages.map(async (pageNumber) => {
+          const renderedPage = await renderPdfPageAsImage(pdf, pageNumber);
+          completedPages += 1;
+          setProgressLabel(
+            `Renderizando página ${completedPages} de ${sortedPages.length}`,
+          );
+          return renderedPage;
+        }),
+      );
 
-        await page.render({ canvas, canvasContext, viewport }).promise;
-        const imageBlob = await canvasToPngBlob(canvas);
-        zip.file(`page-${String(pageNumber).padStart(3, "0")}.png`, imageBlob);
-        canvas.width = 0;
-        canvas.height = 0;
-        page.cleanup();
+      for (const renderedPage of renderedPages) {
+        zip.file(renderedPage.fileName, renderedPage.imageBlob);
       }
 
       setProgressLabel("Generando ZIP");
@@ -240,12 +276,7 @@ export function PdfToImagesTool() {
           {selectedPages.size} de {pageCount} páginas seleccionadas
         </p>
         <div className="grid grid-cols-2 gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={selectAll}
-          >
+          <Button type="button" variant="outline" size="sm" onClick={selectAll}>
             <CheckSquare data-icon="inline-start" aria-hidden />
             Todas
           </Button>

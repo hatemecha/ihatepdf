@@ -1,14 +1,3 @@
-export type PdfOperationKind =
-  | "inspect-pdf"
-  | "merge-pdfs"
-  | "split-pdf"
-  | "extract-pages"
-  | "delete-pages"
-  | "reorder-pages"
-  | "rotate-pages"
-  | "images-to-pdf"
-  | "images-to-pdf-layout";
-
 export interface PdfInputFile {
   name: string;
   buffer: ArrayBuffer;
@@ -25,7 +14,7 @@ export interface LayoutImageAsset {
   buffer: ArrayBuffer;
 }
 
-export interface LayoutPageElement {
+interface LayoutPageElement {
   imageId: string;
   x: number;
   y: number;

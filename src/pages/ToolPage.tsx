@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
@@ -7,7 +7,14 @@ import {
   getSinglePdfOperationConfig,
   SinglePdfOperationTool,
 } from "@/features/pdf-tools/document/SinglePdfOperationTool";
-import { ImageToPdfTool } from "@/features/pdf-tools/images/ImageToPdfTool";
+import {
+  ImageToPdfTool,
+  ModeSwitch,
+  persistWorkspaceMode,
+  readStoredWorkspaceMode,
+  type ImageToPdfMode,
+} from "@/features/pdf-tools/images/ImageToPdfTool";
+import type { ImageToPdfLayoutImageImport } from "@/features/pdf-tools/images/layout/ImageToPdfLayoutEditor";
 import { PdfToImagesTool } from "@/features/pdf-tools/images/PdfToImagesTool";
 import { MergePdfTool } from "@/features/pdf-tools/merge/MergePdfTool";
 import { NotFoundPage } from "@/pages/NotFoundPage";
@@ -16,11 +23,57 @@ import { getToolBySlug, type Tool } from "@/tools/toolCatalog";
 export function ToolPage() {
   const { slug } = useParams<{ slug: string }>();
   const tool = slug ? getToolBySlug(slug) : undefined;
-  const [headerActions, setHeaderActions] = useState<ReactNode>(null);
+  const imageToPdfImportTokenRef = useRef(0);
+  const imageToPdfSimpleFilesRef = useRef<File[]>([]);
+  const [imageToPdfMode, setImageToPdfMode] = useState<ImageToPdfMode>(() =>
+    readStoredWorkspaceMode(),
+  );
+  const [layoutImageImport, setLayoutImageImport] =
+    useState<ImageToPdfLayoutImageImport | null>(null);
+
+  const registerImageToPdfSimpleFiles = useCallback((files: File[]) => {
+    imageToPdfSimpleFilesRef.current = files;
+  }, []);
+
+  const switchImageToPdfToSimple = useCallback(() => {
+    persistWorkspaceMode("simple");
+    setLayoutImageImport(null);
+    setImageToPdfMode("simple");
+  }, []);
+
+  const switchImageToPdfToLayout = useCallback(() => {
+    persistWorkspaceMode("layout");
+    const files = [...imageToPdfSimpleFilesRef.current];
+
+    if (files.length > 0) {
+      imageToPdfImportTokenRef.current += 1;
+      setLayoutImageImport({
+        token: imageToPdfImportTokenRef.current,
+        files,
+      });
+    } else {
+      setLayoutImageImport(null);
+    }
+
+    setImageToPdfMode("layout");
+  }, []);
+
+  const consumeLayoutImageImport = useCallback(() => {
+    setLayoutImageImport(null);
+  }, []);
 
   if (!tool || tool.status !== "available") {
     return <NotFoundPage />;
   }
+
+  const headerActions =
+    tool.implementation === "images-to-pdf" ? (
+      <ModeSwitch
+        mode={imageToPdfMode}
+        onSimple={switchImageToPdfToSimple}
+        onLayout={switchImageToPdfToLayout}
+      />
+    ) : null;
 
   return (
     <main className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -37,7 +90,13 @@ export function ToolPage() {
           />
         ) : null}
         {tool.implementation === "images-to-pdf" ? (
-          <ImageToPdfTool onHeaderActionsChange={setHeaderActions} />
+          <ImageToPdfTool
+            mode={imageToPdfMode}
+            layoutImageImport={layoutImageImport}
+            onLayoutImportConsumed={consumeLayoutImageImport}
+            onRegisterSimpleFiles={registerImageToPdfSimpleFiles}
+            onSwitchToSimple={switchImageToPdfToSimple}
+          />
         ) : null}
         {tool.implementation === "pdf-to-images" ? <PdfToImagesTool /> : null}
       </div>
@@ -66,7 +125,10 @@ function ToolHeader({ tool, actions }: ToolHeaderProps) {
             /
           </span>
           <div className="flex min-w-0 items-center gap-2 text-foreground">
-            <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <Icon
+              className="size-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
             <span className="truncate text-sm font-medium">{tool.name}</span>
           </div>
         </div>

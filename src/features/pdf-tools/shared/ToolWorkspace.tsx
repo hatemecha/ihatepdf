@@ -195,10 +195,10 @@ function EmptyDropzone({
     if (!accept) {
       return files;
     }
-    const tokens = accept
-      .split(",")
-      .map((token) => token.trim().toLowerCase())
-      .filter(Boolean);
+    const tokens = accept.split(",").flatMap((token) => {
+      const normalizedToken = token.trim().toLowerCase();
+      return normalizedToken ? [normalizedToken] : [];
+    });
 
     return files.filter((file) => {
       const name = file.name.toLowerCase();

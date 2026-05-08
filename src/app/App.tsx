@@ -14,11 +14,11 @@ interface ScrollToHashProps {
 }
 
 function ScrollToHash({ lenisRef, scrollContainerRef }: ScrollToHashProps) {
-  const location = useLocation();
+  const { hash, pathname } = useLocation();
 
   useEffect(() => {
-    if (location.hash) {
-      const id = location.hash.replace("#", "");
+    if (hash) {
+      const id = hash.replace("#", "");
       const node = document.getElementById(id);
       if (node) {
         if (lenisRef.current) {
@@ -29,7 +29,7 @@ function ScrollToHash({ lenisRef, scrollContainerRef }: ScrollToHashProps) {
         return;
       }
     }
-    if (!location.hash) {
+    if (!hash) {
       if (lenisRef.current) {
         lenisRef.current.scrollTo(0, { immediate: true });
         return;
@@ -39,14 +39,14 @@ function ScrollToHash({ lenisRef, scrollContainerRef }: ScrollToHashProps) {
         scrollTarget.scrollTo({ top: 0, left: 0, behavior: "auto" });
       }
     }
-  }, [lenisRef, location.pathname, location.hash, scrollContainerRef]);
+  }, [lenisRef, pathname, hash, scrollContainerRef]);
 
   return null;
 }
 
 export function App() {
-  const location = useLocation();
-  const useSmoothPageScroll = shouldUseSmoothPageScroll(location.pathname);
+  const { pathname } = useLocation();
+  const useSmoothPageScroll = shouldUseSmoothPageScroll(pathname);
   const isToolWorkspace = !useSmoothPageScroll;
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const scrollContentRef = useRef<HTMLDivElement | null>(null);
@@ -97,7 +97,10 @@ export function App() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <SiteHeader />
-      <ScrollToHash lenisRef={lenisRef} scrollContainerRef={scrollContainerRef} />
+      <ScrollToHash
+        lenisRef={lenisRef}
+        scrollContainerRef={scrollContainerRef}
+      />
       <div
         ref={scrollContainerRef}
         className={cn(
@@ -106,7 +109,10 @@ export function App() {
           !isToolWorkspace && "app-scroll",
         )}
       >
-        <div ref={scrollContentRef}>
+        <div
+          ref={scrollContentRef}
+          className={cn(isToolWorkspace && "h-full min-h-0")}
+        >
           <AppRoutes />
           {isToolWorkspace ? null : <SiteFooter />}
         </div>

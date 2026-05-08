@@ -19,13 +19,13 @@ export interface PdfValidationResult {
   errors: string[];
 }
 
-export const MIN_MERGE_FILE_COUNT = 2;
+const MIN_MERGE_FILE_COUNT = 2;
 export const MAX_MERGE_FILE_COUNT = 20;
 export const MAX_PDF_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 export const MAX_MERGE_TOTAL_SIZE_BYTES = 200 * 1024 * 1024;
-export const MAX_IMAGE_FILE_COUNT = 40;
-export const MAX_IMAGE_FILE_SIZE_BYTES = 20 * 1024 * 1024;
-export const MAX_IMAGE_TOTAL_SIZE_BYTES = 200 * 1024 * 1024;
+const MAX_IMAGE_FILE_COUNT = 40;
+const MAX_IMAGE_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+const MAX_IMAGE_TOTAL_SIZE_BYTES = 200 * 1024 * 1024;
 
 export function isPdfFile(file: PdfFileLike): boolean {
   const normalizedName = file.name.toLowerCase();

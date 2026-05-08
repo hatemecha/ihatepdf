@@ -21,52 +21,53 @@ const alertVariants = cva(
   },
 );
 
-const Alert = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
->(({ className, role, variant, ...props }, ref) => {
+type AlertProps = React.HTMLAttributes<HTMLDivElement> &
+  VariantProps<typeof alertVariants>;
+
+function Alert({ className, role, variant, ...props }: AlertProps) {
   const semanticRole =
     role ?? (variant === "destructive" ? "alert" : undefined);
 
   return (
     <div
-      ref={ref}
       role={semanticRole}
       data-slot="alert"
       className={cn(alertVariants({ variant }), className)}
       {...props}
     />
   );
-});
-Alert.displayName = "Alert";
+}
 
-const AlertTitle = React.forwardRef<
-  HTMLParagraphElement,
-  React.HTMLAttributes<HTMLHeadingElement>
->(({ className, ...props }, ref) => (
-  <h5
-    ref={ref}
-    data-slot="alert-title"
-    className={cn("col-start-2 line-clamp-1 min-h-4 font-medium", className)}
-    {...props}
-  />
-));
-AlertTitle.displayName = "AlertTitle";
+function AlertTitle({
+  children,
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLHeadingElement>) {
+  return (
+    <h5
+      data-slot="alert-title"
+      className={cn("col-start-2 line-clamp-1 min-h-4 font-medium", className)}
+      {...props}
+    >
+      {children}
+    </h5>
+  );
+}
 
-const AlertDescription = React.forwardRef<
-  HTMLParagraphElement,
-  React.HTMLAttributes<HTMLParagraphElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    data-slot="alert-description"
-    className={cn(
-      "col-start-2 grid justify-items-start gap-1 text-base text-muted-foreground [&_p]:leading-relaxed",
-      className,
-    )}
-    {...props}
-  />
-));
-AlertDescription.displayName = "AlertDescription";
+function AlertDescription({
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      data-slot="alert-description"
+      className={cn(
+        "col-start-2 grid justify-items-start gap-1 text-base text-muted-foreground [&_p]:leading-relaxed",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
 
 export { Alert, AlertTitle, AlertDescription };

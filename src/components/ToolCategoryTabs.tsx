@@ -20,8 +20,8 @@ export function ToolCategoryTabs() {
   return (
     <Tabs defaultValue={ALL_VALUE} className="w-full">
       <div className="mb-10 flex justify-center px-1">
-        <div className="max-w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <TabsList className="h-auto min-h-11 flex-wrap justify-center gap-1 rounded-full">
+        <div className="hidden max-w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:block">
+          <TabsList className="h-auto min-h-11 w-max flex-nowrap justify-start gap-1 rounded-full whitespace-nowrap">
             <TabsTrigger
               value={ALL_VALUE}
               className={categoryTabsTriggerClassName}

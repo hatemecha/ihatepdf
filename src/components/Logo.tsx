@@ -13,7 +13,10 @@ const LOGO_PNG = `${base}iHatePDF.png`;
 export function Logo({ className, showWordmark = true }: LogoProps) {
   return (
     <div className={cn("flex min-w-0 items-center gap-2", className)}>
-      <span className="inline-flex size-8 shrink-0 items-center justify-center" aria-hidden>
+      <span
+        className="inline-flex size-8 shrink-0 items-center justify-center"
+        aria-hidden
+      >
         <img
           src={LOGO_PNG}
           width={32}

@@ -10,11 +10,7 @@ import {
 
 const THUMBNAIL_RENDER_WIDTH = 220;
 
-export type PageDisplayMode =
-  | "neutral"
-  | "selected"
-  | "deletion"
-  | "rotation";
+export type PageDisplayMode = "neutral" | "selected" | "deletion" | "rotation";
 
 export interface PdfDocumentPreviewProps {
   file: File;
@@ -26,10 +22,7 @@ export interface PdfDocumentPreviewProps {
   onPageClick?: (pageNumber: number) => void;
   onLoaded?: (pageCount: number) => void;
   onError?: (message: string) => void;
-  renderPageActions?: (
-    pageNumber: number,
-    displayIndex: number,
-  ) => ReactNode;
+  pageActionsByPage?: Record<number, ReactNode>;
 }
 
 type LoadedState =
@@ -46,7 +39,7 @@ export function PdfDocumentPreview({
   onPageClick,
   onLoaded,
   onError,
-  renderPageActions,
+  pageActionsByPage,
 }: PdfDocumentPreviewProps) {
   const [loadedState, setLoadedState] = useState<LoadedState | null>(null);
 
@@ -139,9 +132,9 @@ export function PdfDocumentPreview({
                   onPageClick ? () => onPageClick(pageNumber) : undefined
                 }
               />
-              {renderPageActions ? (
+              {pageActionsByPage?.[pageNumber] ? (
                 <div className="flex items-center justify-center gap-1">
-                  {renderPageActions(pageNumber, displayIndex)}
+                  {pageActionsByPage[pageNumber]}
                 </div>
               ) : null}
             </li>
@@ -241,7 +234,9 @@ function PdfPageThumbnail({
       className={cn(
         "group flex w-full flex-col items-center gap-2 rounded-md border p-2 transition-colors",
         stateClass,
-        interactive ? "cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" : "cursor-default",
+        interactive
+          ? "cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          : "cursor-default",
       )}
       aria-pressed={interactive ? isSelected : undefined}
     >

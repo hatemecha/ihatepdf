@@ -41,6 +41,10 @@ function getSelectedFilesSize(files: SelectedPdfFile[]): number {
 }
 
 export function MergePdfTool() {
+  return useMergePdfTool();
+}
+
+function useMergePdfTool() {
   const workerRef = useRef<Worker | null>(null);
   const resultUrlRef = useRef<string | null>(null);
 
@@ -54,8 +58,7 @@ export function MergePdfTool() {
     [selectedFiles],
   );
   const totalPages = useMemo(
-    () =>
-      selectedFiles.reduce((sum, item) => sum + (item.pageCount ?? 0), 0),
+    () => selectedFiles.reduce((sum, item) => sum + (item.pageCount ?? 0), 0),
     [selectedFiles],
   );
   const canMerge = selectedFiles.length >= 2 && !isProcessing;
@@ -102,9 +105,7 @@ export function MergePdfTool() {
   }
 
   function removeFile(fileId: string) {
-    updateSelectedFiles(
-      selectedFiles.filter((item) => item.id !== fileId),
-    );
+    updateSelectedFiles(selectedFiles.filter((item) => item.id !== fileId));
   }
 
   function moveFile(fileId: string, direction: -1 | 1) {
@@ -126,9 +127,7 @@ export function MergePdfTool() {
   const handlePageCountResolved = useCallback(
     (id: string, pageCount: number) => {
       setSelectedFiles((current) =>
-        current.map((item) =>
-          item.id === id ? { ...item, pageCount } : item,
-        ),
+        current.map((item) => (item.id === id ? { ...item, pageCount } : item)),
       );
     },
     [],
@@ -249,9 +248,7 @@ export function MergePdfTool() {
                   className="size-8"
                   aria-label={`Mover ${item.file.name} a la derecha`}
                   onClick={() => moveFile(item.id, 1)}
-                  disabled={
-                    index === selectedFiles.length - 1 || isProcessing
-                  }
+                  disabled={index === selectedFiles.length - 1 || isProcessing}
                 >
                   <ArrowRight className="size-4" />
                 </Button>
@@ -297,14 +294,12 @@ export function MergePdfTool() {
           <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
             Peso total
           </dt>
-          <dd className="text-lg font-semibold">
-            {formatFileSize(totalSize)}
-          </dd>
+          <dd className="text-lg font-semibold">{formatFileSize(totalSize)}</dd>
         </div>
       </dl>
       <p className="text-sm text-muted-foreground">
-        El PDF final respeta el orden de la izquierda. Reordena los archivos
-        con las flechas de cada tarjeta antes de unir.
+        El PDF final respeta el orden de la izquierda. Reordena los archivos con
+        las flechas de cada tarjeta antes de unir.
       </p>
       {selectedFiles.length === 1 ? (
         <p className="text-sm text-muted-foreground">

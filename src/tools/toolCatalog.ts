@@ -10,11 +10,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type ToolStatus = "available";
+type ToolStatus = "available";
 
 export type ToolCategoryId = "organize" | "convert" | "edit";
 
-export type ToolImplementation =
+type ToolImplementation =
   | "merge-pdfs"
   | "split-pdf"
   | "extract-pages"
@@ -42,7 +42,7 @@ export interface Tool {
   highlight?: boolean;
 }
 
-export const TOOL_CATEGORIES: ToolCategory[] = [
+const TOOL_CATEGORIES: ToolCategory[] = [
   {
     id: "organize",
     label: "Organizar PDF",
@@ -60,7 +60,7 @@ export const TOOL_CATEGORIES: ToolCategory[] = [
   },
 ];
 
-export const TOOLS: Tool[] = [
+const TOOLS: Tool[] = [
   {
     slug: "merge",
     name: "Unir PDFs",
@@ -157,12 +157,6 @@ export function getToolBySlug(slug: string): Tool | undefined {
   return TOOLS.find((tool) => tool.slug === slug);
 }
 
-export function getCategoryById(
-  categoryId: ToolCategoryId,
-): ToolCategory | undefined {
-  return TOOL_CATEGORIES.find((category) => category.id === categoryId);
-}
-
 export function getToolsByCategory(category: ToolCategoryId): Tool[] {
   return TOOLS.filter((tool) => tool.category === category);
 }
@@ -172,11 +166,3 @@ export function getVisibleToolCategories(): ToolCategory[] {
     TOOLS.some((tool) => tool.category === category.id),
   );
 }
-
-export function getHighlightedTools(): Tool[] {
-  return TOOLS.filter((tool) => tool.highlight);
-}
-
-export const TOOL_STATUS_LABEL: Record<ToolStatus, string> = {
-  available: "Disponible",
-};

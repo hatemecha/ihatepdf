@@ -10,7 +10,7 @@ export function createPdfOperationWorker(): Worker {
   });
 }
 
-export function getPdfOperationTransferList(
+function getPdfOperationTransferList(
   request: PdfOperationRequest,
 ): Transferable[] {
   switch (request.kind) {

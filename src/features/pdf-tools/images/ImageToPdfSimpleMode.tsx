@@ -49,6 +49,12 @@ interface ImageToPdfSimpleModeProps {
 export function ImageToPdfSimpleMode({
   registerFilesForLayout,
 }: ImageToPdfSimpleModeProps = {}) {
+  return useImageToPdfSimpleMode({ registerFilesForLayout });
+}
+
+function useImageToPdfSimpleMode({
+  registerFilesForLayout,
+}: ImageToPdfSimpleModeProps) {
   const workerRef = useRef<Worker | null>(null);
   const resultUrlRef = useRef<string | null>(null);
 
@@ -85,6 +91,7 @@ export function ImageToPdfSimpleMode({
 
   function updateSelectedFiles(nextFiles: SelectedImageFile[]) {
     setSelectedFiles(nextFiles);
+    registerFilesForLayout?.(nextFiles.map((item) => item.file));
     setErrorMessage(null);
     clearDownloadResult();
   }
@@ -198,10 +205,6 @@ export function ImageToPdfSimpleMode({
   }
 
   useEffect(() => {
-    registerFilesForLayout?.(selectedFiles.map((item) => item.file));
-  }, [registerFilesForLayout, selectedFiles]);
-
-  useEffect(() => {
     return () => {
       workerRef.current?.terminate();
       if (resultUrlRef.current) {
@@ -231,7 +234,10 @@ export function ImageToPdfSimpleMode({
               </span>
             </div>
             <div className="min-w-0">
-              <p className="truncate text-xs font-medium" title={item.file.name}>
+              <p
+                className="truncate text-xs font-medium"
+                title={item.file.name}
+              >
                 {item.file.name}
               </p>
               <p className="text-xs text-muted-foreground">
@@ -258,9 +264,7 @@ export function ImageToPdfSimpleMode({
                   className="size-7"
                   aria-label={`Mover ${item.file.name} a la derecha`}
                   onClick={() => moveFile(item.id, 1)}
-                  disabled={
-                    index === selectedFiles.length - 1 || isProcessing
-                  }
+                  disabled={index === selectedFiles.length - 1 || isProcessing}
                 >
                   <ArrowRight className="size-3.5" />
                 </Button>
@@ -298,9 +302,7 @@ export function ImageToPdfSimpleMode({
           <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
             Peso total
           </dt>
-          <dd className="text-lg font-semibold">
-            {formatFileSize(totalSize)}
-          </dd>
+          <dd className="text-lg font-semibold">{formatFileSize(totalSize)}</dd>
         </div>
       </dl>
       <p className="text-sm leading-relaxed text-muted-foreground">

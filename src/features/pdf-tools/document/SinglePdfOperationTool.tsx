@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -154,6 +148,10 @@ function createInitialPageOrder(pageCount: number): number[] {
 export function SinglePdfOperationTool({
   config,
 }: SinglePdfOperationToolProps) {
+  return useSinglePdfOperationTool({ config });
+}
+
+function useSinglePdfOperationTool({ config }: SinglePdfOperationToolProps) {
   const workerRef = useRef<Worker | null>(null);
   const resultUrlRef = useRef<string | null>(null);
 
@@ -294,25 +292,24 @@ export function SinglePdfOperationTool({
     clearDownloadResult();
   }, [clearDownloadResult, pageCount]);
 
-  function movePageInOrder(pageNumber: number, direction: -1 | 1) {
-    setPageOrder((current) => {
-      const currentIndex = current.indexOf(pageNumber);
-      const nextIndex = currentIndex + direction;
-      if (
-        currentIndex < 0 ||
-        nextIndex < 0 ||
-        nextIndex >= current.length
-      ) {
-        return current;
-      }
-      const next = [...current];
-      const [moved] = next.splice(currentIndex, 1);
-      next.splice(nextIndex, 0, moved);
-      return next;
-    });
-    setErrorMessage(null);
-    clearDownloadResult();
-  }
+  const movePageInOrder = useCallback(
+    (pageNumber: number, direction: -1 | 1) => {
+      setPageOrder((current) => {
+        const currentIndex = current.indexOf(pageNumber);
+        const nextIndex = currentIndex + direction;
+        if (currentIndex < 0 || nextIndex < 0 || nextIndex >= current.length) {
+          return current;
+        }
+        const next = [...current];
+        const [moved] = next.splice(currentIndex, 1);
+        next.splice(nextIndex, 0, moved);
+        return next;
+      });
+      setErrorMessage(null);
+      clearDownloadResult();
+    },
+    [clearDownloadResult],
+  );
 
   function resetOrder() {
     setPageOrder(createInitialPageOrder(pageCount));
@@ -328,8 +325,8 @@ export function SinglePdfOperationTool({
   }
 
   function buildOperationRequest(file: PdfInputFile): PdfOperationRequest {
-    const sortedSelection = [...selectedPages]
-      .sort((a, b) => a - b)
+    const sortedSelection = Array.from(selectedPages)
+      .toSorted((a, b) => a - b)
       .map((pageNumber) => pageNumber - 1);
 
     switch (config.operation) {
@@ -473,37 +470,25 @@ export function SinglePdfOperationTool({
     return labels;
   }, [config.operation, pageOrder]);
 
-  const renderPageActions =
-    config.operation === "reorder-pages"
-      ? (pageNumber: number, displayIndex: number) => (
-          <>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              aria-label={`Mover página ${pageNumber} hacia atrás`}
-              onClick={() => movePageInOrder(pageNumber, -1)}
-              disabled={displayIndex === 0 || isProcessing}
-            >
-              <ArrowLeft className="size-3.5" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              aria-label={`Mover página ${pageNumber} hacia adelante`}
-              onClick={() => movePageInOrder(pageNumber, 1)}
-              disabled={
-                displayIndex === pageOrder.length - 1 || isProcessing
-              }
-            >
-              <ArrowRight className="size-3.5" />
-            </Button>
-          </>
-        )
-      : undefined;
+  const pageActionsByPage = useMemo(() => {
+    if (config.operation !== "reorder-pages") {
+      return undefined;
+    }
+
+    return Object.fromEntries(
+      pageOrder.map((pageNumber, displayIndex) => [
+        pageNumber,
+        <ReorderPageActions
+          key={pageNumber}
+          pageNumber={pageNumber}
+          displayIndex={displayIndex}
+          pageCount={pageOrder.length}
+          isProcessing={isProcessing}
+          onMovePage={movePageInOrder}
+        />,
+      ]),
+    );
+  }, [config.operation, isProcessing, movePageInOrder, pageOrder]);
 
   const preview = selectedFile ? (
     <PdfDocumentPreview
@@ -514,7 +499,7 @@ export function SinglePdfOperationTool({
       displayMode={previewProps.mode}
       pageLabels={pageLabels}
       onPageClick={previewProps.interactive ? togglePage : undefined}
-      renderPageActions={renderPageActions}
+      pageActionsByPage={pageActionsByPage}
     />
   ) : (
     <div />
@@ -584,8 +569,8 @@ export function SinglePdfOperationTool({
 
       {config.operation === "split-pdf" ? (
         <p className="text-sm text-muted-foreground">
-          Cada página del PDF se exporta como archivo independiente dentro de
-          un ZIP llamado <code>{`${selectedFile?.name ?? "documento"}.zip`}</code>.
+          Cada página del PDF se exporta como archivo independiente dentro de un
+          ZIP llamado <code>{`${selectedFile?.name ?? "documento"}.zip`}</code>.
         </p>
       ) : null}
     </div>
@@ -666,6 +651,49 @@ export function SinglePdfOperationTool({
   );
 }
 
+interface ReorderPageActionsProps {
+  pageNumber: number;
+  displayIndex: number;
+  pageCount: number;
+  isProcessing: boolean;
+  onMovePage: (pageNumber: number, direction: -1 | 1) => void;
+}
+
+function ReorderPageActions({
+  pageNumber,
+  displayIndex,
+  pageCount,
+  isProcessing,
+  onMovePage,
+}: ReorderPageActionsProps) {
+  return (
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="size-7"
+        aria-label={`Mover página ${pageNumber} hacia atrás`}
+        onClick={() => onMovePage(pageNumber, -1)}
+        disabled={displayIndex === 0 || isProcessing}
+      >
+        <ArrowLeft className="size-3.5" />
+      </Button>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="size-7"
+        aria-label={`Mover página ${pageNumber} hacia adelante`}
+        onClick={() => onMovePage(pageNumber, 1)}
+        disabled={displayIndex === pageCount - 1 || isProcessing}
+      >
+        <ArrowRight className="size-3.5" />
+      </Button>
+    </>
+  );
+}
+
 interface FileSummaryProps {
   file: File;
   pageCount: number;
@@ -722,12 +750,7 @@ function SelectionControls({
         {selectedCount} de {totalCount} páginas seleccionadas
       </p>
       <div className="grid grid-cols-2 gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onSelectAll}
-        >
+        <Button type="button" variant="outline" size="sm" onClick={onSelectAll}>
           <CheckSquare data-icon="inline-start" aria-hidden />
           Todas
         </Button>

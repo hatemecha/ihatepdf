@@ -79,14 +79,17 @@ async function inspectPdf(file: PdfInputFile): Promise<PdfOperationResult> {
 }
 
 async function mergePdfs(files: PdfInputFile[]): Promise<PdfOperationResult> {
-  const outputDocument = await PDFDocument.create();
+  const [outputDocument, sourceDocuments] = await Promise.all([
+    PDFDocument.create(),
+    Promise.all(files.map((file) => loadPdf(file))),
+  ]);
+  const copiedPagesByDocument = await Promise.all(
+    sourceDocuments.map((sourceDocument) =>
+      outputDocument.copyPages(sourceDocument, sourceDocument.getPageIndices()),
+    ),
+  );
 
-  for (const file of files) {
-    const sourceDocument = await loadPdf(file);
-    const copiedPages = await outputDocument.copyPages(
-      sourceDocument,
-      sourceDocument.getPageIndices(),
-    );
+  for (const copiedPages of copiedPagesByDocument) {
     copiedPages.forEach((page) => outputDocument.addPage(page));
   }
 
@@ -102,12 +105,21 @@ async function splitPdf(file: PdfInputFile): Promise<PdfOperationResult> {
   const zip = new JSZip();
   const pageCount = sourceDocument.getPageCount();
 
-  for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
-    const pageDocument = await copyPagesToNewDocument(sourceDocument, [
-      pageIndex,
-    ]);
-    const pageBytes = await pageDocument.save();
-    zip.file(`page-${String(pageIndex + 1).padStart(3, "0")}.pdf`, pageBytes);
+  const splitPages = await Promise.all(
+    Array.from({ length: pageCount }, async (_, pageIndex) => {
+      const pageDocument = await copyPagesToNewDocument(sourceDocument, [
+        pageIndex,
+      ]);
+      const pageBytes = await pageDocument.save();
+      return {
+        fileName: `page-${String(pageIndex + 1).padStart(3, "0")}.pdf`,
+        pageBytes,
+      };
+    }),
+  );
+
+  for (const page of splitPages) {
+    zip.file(page.fileName, page.pageBytes);
   }
 
   const zipBytes = await zip.generateAsync({ type: "uint8array" });
@@ -205,9 +217,11 @@ async function imagesToPdf(
   files: ImageInputFile[],
 ): Promise<PdfOperationResult> {
   const outputDocument = await PDFDocument.create();
+  const embeddedImages = await Promise.all(
+    files.map((file) => embedImage(outputDocument, file)),
+  );
 
-  for (const file of files) {
-    const embeddedImage = await embedImage(outputDocument, file);
+  for (const embeddedImage of embeddedImages) {
     const pageSize =
       embeddedImage.width > embeddedImage.height ? A4_LANDSCAPE : A4_PORTRAIT;
     const page = outputDocument.addPage([pageSize.width, pageSize.height]);
@@ -261,12 +275,15 @@ async function imagesToPdfLayout(
     string,
     Awaited<ReturnType<typeof embedLayoutImage>>
   >();
+  const embeddedImages = await Promise.all(
+    images.map(async (asset) => ({
+      id: asset.id,
+      embeddedImage: await embedLayoutImage(outputDocument, asset),
+    })),
+  );
 
-  for (const asset of images) {
-    embeddedByImageId.set(
-      asset.id,
-      await embedLayoutImage(outputDocument, asset),
-    );
+  for (const { id, embeddedImage } of embeddedImages) {
+    embeddedByImageId.set(id, embeddedImage);
   }
 
   for (const pageData of pages) {

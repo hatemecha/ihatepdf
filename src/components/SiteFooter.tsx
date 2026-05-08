@@ -4,6 +4,8 @@ import { GitHubIcon } from "@/components/icons/GitHubIcon";
 import { Logo } from "@/components/Logo";
 import { REPO_URL } from "@/lib/site";
 
+const COPYRIGHT_YEAR = 2026;
+
 export function SiteFooter() {
   return (
     <footer className="mt-12 border-t border-border bg-panel/70">
@@ -34,7 +36,7 @@ export function SiteFooter() {
           </div>
 
           <p className="text-xs leading-none text-muted-foreground">
-            © {new Date().getFullYear()} Alex Romero · aka hatemecha
+            © {COPYRIGHT_YEAR} Alex Romero · aka hatemecha
           </p>
         </div>
       </div>

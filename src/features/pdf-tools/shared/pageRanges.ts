@@ -89,7 +89,7 @@ export function parsePageRange(
 
   return {
     isValid: true,
-    pages: [...selectedPages].sort((a, b) => a - b),
+    pages: Array.from(selectedPages).toSorted((a, b) => a - b),
   };
 }
 
