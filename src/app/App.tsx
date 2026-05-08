@@ -1,12 +1,19 @@
-import { useEffect } from "react";
+import Lenis from "lenis";
+import { useEffect, useRef, type RefObject } from "react";
 import { useLocation } from "react-router-dom";
 
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AppRoutes } from "@/app/routes";
 import { cn } from "@/lib/utils";
+import { shouldUseSmoothPageScroll } from "@/lib/scrollRoutes";
 
-function ScrollToHash() {
+interface ScrollToHashProps {
+  lenisRef: RefObject<Lenis | null>;
+  scrollContainerRef: RefObject<HTMLDivElement | null>;
+}
+
+function ScrollToHash({ lenisRef, scrollContainerRef }: ScrollToHashProps) {
   const location = useLocation();
 
   useEffect(() => {
@@ -14,35 +21,95 @@ function ScrollToHash() {
       const id = location.hash.replace("#", "");
       const node = document.getElementById(id);
       if (node) {
+        if (lenisRef.current) {
+          lenisRef.current.scrollTo(node, { duration: 0.85 });
+          return;
+        }
         node.scrollIntoView({ behavior: "smooth", block: "start" });
         return;
       }
     }
     if (!location.hash) {
-      const scrollTarget = document.scrollingElement ?? document.documentElement;
-      scrollTarget.scrollTop = 0;
+      if (lenisRef.current) {
+        lenisRef.current.scrollTo(0, { immediate: true });
+        return;
+      }
+      const scrollTarget = scrollContainerRef.current;
+      if (scrollTarget) {
+        scrollTarget.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      }
     }
-  }, [location.pathname, location.hash]);
+  }, [lenisRef, location.pathname, location.hash, scrollContainerRef]);
 
   return null;
 }
 
 export function App() {
   const location = useLocation();
-  const isToolWorkspace = location.pathname.startsWith("/herramientas/");
+  const useSmoothPageScroll = shouldUseSmoothPageScroll(location.pathname);
+  const isToolWorkspace = !useSmoothPageScroll;
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const scrollContentRef = useRef<HTMLDivElement | null>(null);
+  const lenisRef = useRef<Lenis | null>(null);
+
+  useEffect(() => {
+    if (!useSmoothPageScroll) {
+      return;
+    }
+
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    if (
+      prefersReducedMotion ||
+      !scrollContainerRef.current ||
+      !scrollContentRef.current
+    ) {
+      return;
+    }
+
+    const lenis = new Lenis({
+      wrapper: scrollContainerRef.current,
+      content: scrollContentRef.current,
+      lerp: 0.08,
+      wheelMultiplier: 0.9,
+      touchMultiplier: 1.1,
+      syncTouch: false,
+    });
+    let frame = 0;
+
+    const raf = (time: number) => {
+      lenis.raf(time);
+      frame = requestAnimationFrame(raf);
+    };
+
+    lenisRef.current = lenis;
+    frame = requestAnimationFrame(raf);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      lenis.destroy();
+      lenisRef.current = null;
+    };
+  }, [useSmoothPageScroll]);
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <SiteHeader />
-      <ScrollToHash />
+      <ScrollToHash lenisRef={lenisRef} scrollContainerRef={scrollContainerRef} />
       <div
+        ref={scrollContainerRef}
         className={cn(
           "min-h-0 flex-1",
           isToolWorkspace ? "overflow-hidden" : "overflow-y-auto",
+          !isToolWorkspace && "app-scroll",
         )}
       >
-        <AppRoutes />
-        {isToolWorkspace ? null : <SiteFooter />}
+        <div ref={scrollContentRef}>
+          <AppRoutes />
+          {isToolWorkspace ? null : <SiteFooter />}
+        </div>
       </div>
     </div>
   );

@@ -7,8 +7,8 @@ export function HomePage() {
   return (
     <main>
       <section className="border-b border-border bg-muted/35">
-        <div className="container-page py-14 text-center md:py-20">
-          <div className="mx-auto flex max-w-2xl flex-col items-center gap-3">
+        <div className="container-page py-9 text-center sm:py-11 md:py-14">
+          <div className="mx-auto flex max-w-2xl flex-col items-center gap-2.5">
             <Badge
               variant="outline"
               className="inline-flex items-center gap-2 border-brand bg-card px-3 py-1 text-brand"
@@ -29,7 +29,7 @@ export function HomePage() {
 
       <section
         id="herramientas"
-        className="container-page scroll-mt-20 py-12 md:py-16"
+        className="container-page scroll-mt-20 py-8 md:py-10"
       >
         <ToolCategoryTabs />
       </section>

@@ -6,34 +6,36 @@ import { REPO_URL } from "@/lib/site";
 
 export function SiteFooter() {
   return (
-    <footer className="mt-16 border-t border-border bg-muted">
-      <div className="container-page py-10 sm:py-11">
-        <div className="flex flex-col items-center gap-8 text-center sm:flex-row sm:items-start sm:justify-between sm:gap-10 sm:text-left">
-          <div className="flex w-full max-w-lg flex-col items-center gap-3 sm:items-start">
-            <Logo />
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              PDFs en tu navegador ·{" "}
-              <Link
-                to="/#herramientas"
-                className="font-medium text-foreground underline-offset-4 hover:text-brand hover:underline"
-              >
-                Herramientas
-              </Link>
-            </p>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              © {new Date().getFullYear()} Alex Romero · aka hatemecha
-            </p>
+    <footer className="mt-12 border-t border-border bg-panel/70">
+      <div className="container-page py-5 sm:py-6">
+        <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 text-center">
+          <Logo className="[&_img]:size-7 [&_span:first-child]:size-7 [&_span:last-child]:text-base" />
+
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+            <span>PDFs en tu navegador</span>
+            <span aria-hidden className="text-brand">
+              ·
+            </span>
+            <Link
+              to="/#herramientas"
+              className="font-medium text-foreground underline-offset-4 transition-colors hover:text-brand hover:underline"
+            >
+              Herramientas
+            </Link>
+            <a
+              href={REPO_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-2.5 py-1 text-xs font-medium text-foreground shadow-sm shadow-black/10 transition-colors hover:border-brand/70 hover:text-brand"
+            >
+              <GitHubIcon className="size-3.5 shrink-0" aria-hidden />
+              Código
+            </a>
           </div>
 
-          <a
-            href={REPO_URL}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="inline-flex shrink-0 items-center gap-2 rounded-md px-1 py-1 text-sm font-medium text-foreground transition-colors hover:text-brand sm:pt-0.5"
-          >
-            <GitHubIcon className="size-4 shrink-0" aria-hidden />
-            Código
-          </a>
+          <p className="text-xs leading-none text-muted-foreground">
+            © {new Date().getFullYear()} Alex Romero · aka hatemecha
+          </p>
         </div>
       </div>
     </footer>
