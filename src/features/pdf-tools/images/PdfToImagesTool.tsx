@@ -216,7 +216,7 @@ export function PdfToImagesTool() {
   const sidebar = (
     <div className="flex flex-col gap-4">
       {selectedFile ? (
-        <div className="rounded-md border border-border bg-muted/40 p-3">
+        <div className="surface-inset">
           <p className="truncate text-sm font-medium" title={selectedFile.name}>
             {selectedFile.name}
           </p>

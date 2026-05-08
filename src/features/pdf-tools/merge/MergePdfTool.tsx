@@ -199,8 +199,8 @@ export function MergePdfTool() {
   }, []);
 
   const preview = (
-    <div className="h-full min-h-0 overflow-y-auto rounded-lg border border-border bg-muted/40 p-4">
-      <ol className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+    <div className="h-full min-h-0 overflow-y-auto pr-1">
+      <ol className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3 sm:gap-4">
         {selectedFiles.map((item, index) => (
           <li
             key={item.id}
@@ -276,28 +276,28 @@ export function MergePdfTool() {
 
   const sidebar = (
     <div className="flex flex-col gap-4">
-      <dl className="grid grid-cols-2 gap-3">
-        <div className="rounded-md border border-border bg-muted/40 p-3">
-          <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+      <dl className="grid grid-cols-2 gap-2">
+        <div className="stat-tile">
+          <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
             Archivos
           </dt>
-          <dd className="mt-1 text-2xl font-semibold tabular-nums">
+          <dd className="text-2xl font-semibold tabular-nums">
             {selectedFiles.length}
           </dd>
         </div>
-        <div className="rounded-md border border-border bg-muted/40 p-3">
-          <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+        <div className="stat-tile">
+          <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
             Páginas
           </dt>
-          <dd className="mt-1 text-2xl font-semibold tabular-nums">
+          <dd className="text-2xl font-semibold tabular-nums">
             {totalPages || "—"}
           </dd>
         </div>
-        <div className="col-span-2 rounded-md border border-border bg-muted/40 p-3">
-          <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+        <div className="stat-tile col-span-2">
+          <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
             Peso total
           </dt>
-          <dd className="mt-1 text-lg font-semibold">
+          <dd className="text-lg font-semibold">
             {formatFileSize(totalSize)}
           </dd>
         </div>

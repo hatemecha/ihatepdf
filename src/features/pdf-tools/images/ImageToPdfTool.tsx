@@ -1,6 +1,6 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 import { ImageToPdfSimpleMode } from "./ImageToPdfSimpleMode";
 import {
@@ -32,7 +32,16 @@ function persistWorkspaceMode(next: ImageToPdfMode) {
   }
 }
 
-export function ImageToPdfTool() {
+interface ImageToPdfToolProps {
+  /**
+   * The Image→PDF tool exposes a Simple/Layout switcher that should live in
+   * the global tool header instead of a stacked toolbar inside the workspace.
+   * The host page provides this callback to receive the actions node.
+   */
+  onHeaderActionsChange?: (node: ReactNode) => void;
+}
+
+export function ImageToPdfTool({ onHeaderActionsChange }: ImageToPdfToolProps = {}) {
   const [mode, setMode] = useState<ImageToPdfMode>(() =>
     readStoredWorkspaceMode(),
   );
@@ -70,58 +79,22 @@ export function ImageToPdfTool() {
     setLayoutImageImport(null);
   }, []);
 
-  const switchMode = useCallback(() => {
-    if (mode === "simple") {
-      goToLayout();
-    } else {
-      goToSimple();
+  useEffect(() => {
+    if (!onHeaderActionsChange) {
+      return;
     }
-  }, [goToLayout, goToSimple, mode]);
+    onHeaderActionsChange(
+      <ModeSwitch
+        mode={mode}
+        onSimple={goToSimple}
+        onLayout={goToLayout}
+      />,
+    );
+    return () => onHeaderActionsChange(null);
+  }, [goToLayout, goToSimple, mode, onHeaderActionsChange]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2 overflow-hidden">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="text-muted-foreground">Modo:</span>
-          <div
-            className="inline-flex rounded-md border border-border bg-background p-0.5"
-            role="group"
-            aria-label="Elegir modo de trabajo"
-          >
-            <Button
-              type="button"
-              variant={mode === "simple" ? "brand" : "ghost"}
-              size="sm"
-              className="h-7 rounded-sm px-2 text-xs"
-              onClick={goToSimple}
-              aria-pressed={mode === "simple"}
-            >
-              Simple
-            </Button>
-            <Button
-              type="button"
-              variant={mode === "layout" ? "brand" : "ghost"}
-              size="sm"
-              className="h-7 rounded-sm px-2 text-xs"
-              onClick={goToLayout}
-              aria-pressed={mode === "layout"}
-            >
-              Editor libre (beta)
-            </Button>
-          </div>
-        </div>
-
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-          onClick={switchMode}
-        >
-          Cambiar modo
-        </Button>
-      </div>
-
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="min-h-0 flex-1 overflow-hidden">
         {mode === "layout" ? (
           <ImageToPdfLayoutEditor
@@ -134,5 +107,55 @@ export function ImageToPdfTool() {
         )}
       </div>
     </div>
+  );
+}
+
+interface ModeSwitchProps {
+  mode: ImageToPdfMode;
+  onSimple: () => void;
+  onLayout: () => void;
+}
+
+function ModeSwitch({ mode, onSimple, onLayout }: ModeSwitchProps) {
+  return (
+    <div
+      className="inline-flex items-center rounded-full bg-muted p-0.5 text-xs"
+      role="group"
+      aria-label="Elegir modo de trabajo"
+    >
+      <ModeChip active={mode === "simple"} onClick={onSimple}>
+        Simple
+      </ModeChip>
+      <ModeChip active={mode === "layout"} onClick={onLayout}>
+        Editor libre
+        <span className="ml-1 hidden text-[10px] uppercase tracking-wide opacity-70 sm:inline">
+          beta
+        </span>
+      </ModeChip>
+    </div>
+  );
+}
+
+interface ModeChipProps {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}
+
+function ModeChip({ active, onClick, children }: ModeChipProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "inline-flex h-7 items-center gap-1 rounded-full px-3 text-xs font-medium transition-colors",
+        active
+          ? "bg-background text-foreground shadow-sm"
+          : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {children}
+    </button>
   );
 }

@@ -97,7 +97,7 @@ export function PdfDocumentPreview({
 
   if (loadError) {
     return (
-      <div className="flex h-full min-h-0 items-center justify-center rounded-lg border border-dashed border-destructive/40 bg-card p-8 text-center text-sm text-destructive">
+      <div className="flex h-full min-h-0 items-center justify-center rounded-lg border border-dashed border-destructive/40 p-8 text-center text-sm text-destructive">
         {loadError}
       </div>
     );
@@ -105,7 +105,7 @@ export function PdfDocumentPreview({
 
   if (!pdf) {
     return (
-      <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card p-8 text-center text-muted-foreground">
+      <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
         <Loader2 className="size-8 animate-spin text-brand" aria-hidden />
         <p className="text-sm">Generando vista previa…</p>
       </div>
@@ -115,8 +115,8 @@ export function PdfDocumentPreview({
   const interactive = Boolean(onPageClick);
 
   return (
-    <div className="h-full min-h-0 overflow-y-auto rounded-lg border border-border bg-muted/40 p-4">
-      <ol className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4">
+    <div className="h-full min-h-0 overflow-y-auto pr-1">
+      <ol className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 sm:gap-4">
         {pageOrder.map((pageNumber, displayIndex) => {
           const isSelected = selectedPages?.has(pageNumber) ?? false;
           const rotation = rotationByPage?.[pageNumber] ?? 0;
@@ -222,13 +222,13 @@ function PdfPageThumbnail({
     }
     switch (displayMode) {
       case "deletion":
-        return "border-destructive ring-2 ring-destructive/40 bg-destructive/5";
+        return "border-destructive ring-1 ring-destructive/50 bg-destructive/5";
       case "rotation":
-        return "border-brand ring-2 ring-brand/40 bg-brand/5";
+        return "border-brand ring-1 ring-brand/50 bg-brand/5";
       case "selected":
       case "neutral":
       default:
-        return "border-brand ring-2 ring-brand/40 bg-brand/5";
+        return "border-brand ring-1 ring-brand/50 bg-brand/5";
     }
   })();
 

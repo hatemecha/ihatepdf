@@ -12,20 +12,20 @@ const LOGO_PNG = `${base}iHatePDF.png`;
 
 export function Logo({ className, showWordmark = true }: LogoProps) {
   return (
-    <div className={cn("flex min-w-0 items-center gap-1.5 sm:gap-2", className)}>
-      <span className="inline-flex size-10 shrink-0 items-center justify-center" aria-hidden>
+    <div className={cn("flex min-w-0 items-center gap-2", className)}>
+      <span className="inline-flex size-8 shrink-0 items-center justify-center" aria-hidden>
         <img
           src={LOGO_PNG}
-          width={40}
-          height={40}
+          width={32}
+          height={32}
           alt=""
-          className="size-10 max-h-10 max-w-10 object-contain"
+          className="size-8 max-h-8 max-w-8 object-contain"
           decoding="async"
         />
       </span>
       {showWordmark ? (
-        <span className="whitespace-nowrap font-mono text-lg font-semibold tracking-tight text-foreground">
-          iHate<span className="text-brand/90">PDF</span>
+        <span className="whitespace-nowrap font-mono text-base font-semibold tracking-tight text-foreground sm:text-lg">
+          iHate<span className="text-brand">PDF</span>
         </span>
       ) : null}
     </div>

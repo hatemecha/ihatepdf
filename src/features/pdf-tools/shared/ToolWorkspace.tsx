@@ -83,8 +83,8 @@ export function ToolWorkspace({
       />
 
       {hasContent ? (
-        <div className="grid grid-cols-1 gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:overflow-hidden">
+        <div className="grid grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-0 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:overflow-hidden lg:pr-6">
             <div className="min-h-[420px] lg:min-h-0 lg:flex-1 lg:overflow-hidden">
               {preview}
             </div>
@@ -99,21 +99,23 @@ export function ToolWorkspace({
             ) : null}
           </div>
 
-          <aside className="flex min-w-0 flex-col rounded-lg border border-border bg-card lg:min-h-0 lg:overflow-hidden">
-            <header className="shrink-0 border-b border-border px-5 py-4">
-              <h2 className="text-lg font-semibold">{sidebarTitle}</h2>
+          <aside className="flex min-w-0 flex-col gap-4 border-t border-border pt-4 lg:min-h-0 lg:overflow-hidden lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+            <header className="shrink-0">
+              <h2 className="text-base font-semibold leading-tight">
+                {sidebarTitle}
+              </h2>
               {sidebarDescription ? (
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                   {sidebarDescription}
                 </p>
               ) : null}
             </header>
 
-            <div className="px-5 py-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+            <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
               {sidebar}
             </div>
 
-            <footer className="flex shrink-0 flex-col gap-2 border-t border-border bg-muted/30 px-5 py-4">
+            <footer className="flex shrink-0 flex-col gap-2 border-t border-border pt-4">
               {addMore ? (
                 <Button
                   type="button"
@@ -226,13 +228,13 @@ function EmptyDropzone({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center">
+    <div className="flex min-h-0 flex-1 items-center justify-center py-6 sm:py-10">
       <div
         className={cn(
-          "relative flex w-full max-w-4xl flex-col items-center gap-4 overflow-hidden rounded-2xl border-2 border-dashed p-10 text-center shadow-[0_18px_40px_-26px_rgba(0,0,0,0.55)] transition-colors",
+          "flex w-full max-w-3xl flex-col items-center gap-4 rounded-2xl border border-dashed bg-card/40 p-6 text-center transition-colors sm:p-10",
           isDragging
             ? "border-brand bg-brand/5"
-            : "border-border bg-card/80",
+            : "border-border hover:border-foreground/30",
         )}
         onDragEnter={(event) => {
           event.preventDefault();
@@ -250,13 +252,14 @@ function EmptyDropzone({
         }}
         onDrop={handleDrop}
       >
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,oklch(0.27_0.02_250/0.28),transparent_55%)]" />
-        <div className="relative z-10 flex size-14 items-center justify-center rounded-full border border-brand/25 bg-brand/10 text-brand">
-          <Upload className="size-7" aria-hidden />
+        <div className="flex size-12 items-center justify-center rounded-full bg-brand/10 text-brand">
+          <Upload className="size-6" aria-hidden />
         </div>
-        <div className="relative z-10 flex max-w-2xl flex-col gap-1.5">
-          <h2 className="text-3xl font-bold tracking-tight">{title}</h2>
-          <p className="text-base leading-relaxed text-muted-foreground">
+        <div className="flex max-w-xl flex-col gap-1.5">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            {title}
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
             {description}
           </p>
         </div>
@@ -266,18 +269,15 @@ function EmptyDropzone({
           size="lg"
           onClick={onOpenPicker}
           disabled={isProcessing}
-          className="relative z-10"
         >
           <Upload data-icon="inline-start" aria-hidden />
           {actionLabel}
         </Button>
         {hint ? (
-          <p className="relative z-10 text-sm text-muted-foreground">
-            {hint}
-          </p>
+          <p className="text-xs text-muted-foreground sm:text-sm">{hint}</p>
         ) : null}
         {errorMessage ? (
-          <Alert variant="destructive" className="relative z-10 w-full max-w-2xl text-left">
+          <Alert variant="destructive" className="w-full max-w-xl text-left">
             <AlertTitle>No se pudo continuar</AlertTitle>
             <AlertDescription>{errorMessage}</AlertDescription>
           </Alert>

@@ -1,13 +1,32 @@
 @utility container-page {
   width: 100%;
   margin-inline: auto;
-  padding-inline: 1.5rem;
+  padding-inline: 1rem;
   max-width: 82rem;
+}
+
+@media (min-width: 640px) {
+  .container-page {
+    padding-inline: 1.5rem;
+  }
+}
+
+@utility container-tool {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 1rem;
+  max-width: 90rem;
+}
+
+@media (min-width: 640px) {
+  .container-tool {
+    padding-inline: 1.5rem;
+  }
 }
 
 @utility heading-display {
   font-family: var(--font-sans);
-  letter-spacing: 0;
+  letter-spacing: -0.01em;
   font-weight: 700;
   line-height: 1;
 }
@@ -17,9 +36,60 @@
   align-items: center;
   gap: 0.5rem;
   font-family: var(--font-mono);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
   color: var(--muted-foreground);
+}
+
+/*
+ * Toolbar pattern: a horizontal row of controls separated from neighbouring
+ * regions by a single hairline. Never wrap nested bordered groups inside; use
+ * `tool-divider` for visual separation between control groups instead.
+ */
+@utility tool-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding-block: 0.5rem;
+}
+
+@utility tool-divider {
+  display: none;
+  width: 1px;
+  height: 1.25rem;
+  background-color: var(--border);
+}
+
+@media (min-width: 640px) {
+  .tool-divider {
+    display: block;
+  }
+}
+
+/*
+ * Subtle inset surface for read-only metadata blocks (counters, summaries).
+ * Uses a single background colour, no border, so it reads as a region and
+ * does not compete with surrounding card chrome.
+ */
+@utility surface-inset {
+  background-color: color-mix(in oklch, var(--panel-strong) 65%, transparent);
+  border-radius: var(--radius-md);
+  padding: 0.65rem 0.75rem;
+}
+
+/*
+ * Compact key/value tile used in tool sidebars. Single soft surface, no
+ * border. Pair with `surface-inset` siblings via grid gap for a calm group.
+ */
+@utility stat-tile {
+  background-color: color-mix(in oklch, var(--panel-strong) 65%, transparent);
+  border-radius: var(--radius-md);
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
 }

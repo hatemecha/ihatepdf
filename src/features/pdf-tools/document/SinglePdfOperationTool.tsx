@@ -674,7 +674,7 @@ interface FileSummaryProps {
 
 function FileSummary({ file, pageCount, onChange }: FileSummaryProps) {
   return (
-    <div className="rounded-md border border-border bg-muted/40 p-3">
+    <div className="surface-inset">
       <p className="truncate text-sm font-medium" title={file.name}>
         {file.name}
       </p>

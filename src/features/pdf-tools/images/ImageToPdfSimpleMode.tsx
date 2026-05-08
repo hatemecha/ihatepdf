@@ -213,14 +213,14 @@ export function ImageToPdfSimpleMode({
   }, []);
 
   const preview = (
-    <div className="h-full min-h-0 overflow-y-auto rounded-xl border border-border bg-muted/35 p-4">
-      <ol className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4">
+    <div className="h-full min-h-0 overflow-y-auto pr-1">
+      <ol className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 sm:gap-4">
         {selectedFiles.map((item, index) => (
           <li
             key={item.id}
-            className="group flex flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-[0_12px_24px_-20px_rgba(0,0,0,0.55)] transition-colors hover:border-foreground/35"
+            className="group flex flex-col gap-2 rounded-lg border border-border bg-card p-2 transition-colors hover:border-foreground/35"
           >
-            <div className="relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-lg bg-white ring-1 ring-inset ring-neutral-300/65">
+            <div className="relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-md bg-white">
               <img
                 src={item.previewUrl}
                 alt={item.file.name}
@@ -285,25 +285,25 @@ export function ImageToPdfSimpleMode({
 
   const sidebar = (
     <div className="flex flex-col gap-4">
-      <dl className="grid grid-cols-2 gap-3">
-        <div className="rounded-lg border border-border bg-muted/35 p-3">
-          <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+      <dl className="grid grid-cols-2 gap-2">
+        <div className="stat-tile">
+          <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
             Imágenes
           </dt>
-          <dd className="mt-1 text-2xl font-semibold tabular-nums">
+          <dd className="text-2xl font-semibold tabular-nums">
             {selectedFiles.length}
           </dd>
         </div>
-        <div className="rounded-lg border border-border bg-muted/35 p-3">
-          <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+        <div className="stat-tile">
+          <dt className="text-[11px] uppercase tracking-wide text-muted-foreground">
             Peso total
           </dt>
-          <dd className="mt-1 text-lg font-semibold">
+          <dd className="text-lg font-semibold">
             {formatFileSize(totalSize)}
           </dd>
         </div>
       </dl>
-      <p className="rounded-lg border border-border bg-background/55 px-3 py-2 text-sm text-muted-foreground">
+      <p className="text-sm leading-relaxed text-muted-foreground">
         Cada imagen se inserta como una página del PDF, en el orden de la
         izquierda.
       </p>

@@ -12,8 +12,8 @@ export function SiteHeader() {
   const visibleCategories = getVisibleToolCategories();
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-background">
-      <div className="container-page flex h-20 items-center justify-between gap-2 sm:gap-4 md:grid md:grid-cols-[auto_1fr_auto] md:items-center md:justify-normal">
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80">
+      <div className="container-page flex h-16 items-center justify-between gap-2 sm:gap-4 md:grid md:grid-cols-[auto_1fr_auto] md:items-center md:justify-normal">
         <Link
           to="/"
           aria-label="iHatePDF inicio"
@@ -26,14 +26,14 @@ export function SiteHeader() {
           className="hidden min-w-0 md:flex md:justify-self-center"
           aria-label="Categorias"
         >
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             {visibleCategories.map((category) => (
               <NavLink
                 key={category.id}
                 to={`/#cat-${category.id}`}
                 className={({ isActive }) =>
                   cn(
-                    "rounded-full px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:px-4 lg:text-base",
+                    "whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
                     isActive && "text-foreground",
                   )
                 }

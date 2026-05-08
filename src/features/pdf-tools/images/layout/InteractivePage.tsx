@@ -8,8 +8,6 @@ import {
   type PointerEvent,
 } from "react";
 
-import { Image as ImageIcon } from "lucide-react";
-
 import { cn } from "@/lib/utils";
 
 import {
@@ -38,8 +36,6 @@ interface InteractivePageProps {
     pageX: number,
     pageY: number,
   ) => void;
-  /** When true and the page has no elements, show upload hint on the white sheet (readable contrast). */
-  libraryEmpty?: boolean;
 }
 
 type ResizeCorner = "tl" | "tr" | "bl" | "br";
@@ -88,7 +84,6 @@ export function InteractivePage({
   onSelectElement,
   onUpdateElement,
   onDropImageFromLibrary,
-  libraryEmpty = false,
 }: InteractivePageProps) {
   const pageRef = useRef<HTMLDivElement>(null);
   const dragStateRef = useRef<DragState | null>(null);
@@ -380,7 +375,7 @@ export function InteractivePage({
   return (
     <div
       ref={pageRef}
-      className="relative shadow-[0_24px_48px_-24px_rgba(0,0,0,0.45)] outline outline-1 outline-border"
+      className="relative shadow-[0_12px_28px_-12px_rgba(0,0,0,0.4)] outline outline-1 outline-border"
       style={{
         width: page.width * displayScale,
         height: page.height * displayScale,
@@ -390,22 +385,6 @@ export function InteractivePage({
       onDragOver={handlePageDragOver}
       onDrop={handlePageDrop}
     >
-      {libraryEmpty && sortedElements.length === 0 ? (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
-          <div className="flex max-w-[32ch] flex-col items-center gap-3 rounded-xl border border-neutral-200 bg-white/95 px-5 py-4 text-center shadow-[0_10px_30px_-16px_rgba(0,0,0,0.35)]">
-            <ImageIcon
-              className="size-10 shrink-0 text-neutral-500"
-              strokeWidth={1.25}
-              aria-hidden
-            />
-            <p className="text-sm leading-relaxed text-neutral-800">
-              Subí imágenes en el panel izquierdo y arrastrá una hasta acá.
-              También podés hacer doble clic o pulsar Enter en una miniatura para
-              centrarla en la página.
-            </p>
-          </div>
-        </div>
-      ) : null}
       {sortedElements.map((element) => {
         const asset = imagesById.get(element.imageId);
         if (!asset) {
