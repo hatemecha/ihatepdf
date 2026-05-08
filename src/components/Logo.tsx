@@ -5,19 +5,27 @@ interface LogoProps {
   showWordmark?: boolean;
 }
 
+const base = import.meta.env.BASE_URL;
+
+/** PNG único en /public — el arte real con transparencia */
+const LOGO_PNG = `${base}iHatePDF.png`;
+
 export function Logo({ className, showWordmark = true }: LogoProps) {
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <span
-        aria-hidden
-        className="relative inline-flex size-10 items-center justify-center rounded-md bg-brand font-mono text-base font-bold text-brand-foreground"
-      >
-        iH
-        <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-foreground" />
+    <div className={cn("flex min-w-0 items-center gap-1.5 sm:gap-2", className)}>
+      <span className="inline-flex size-10 shrink-0 items-center justify-center" aria-hidden>
+        <img
+          src={LOGO_PNG}
+          width={40}
+          height={40}
+          alt=""
+          className="size-10 max-h-10 max-w-10 object-contain"
+          decoding="async"
+        />
       </span>
       {showWordmark ? (
-        <span className="font-mono text-lg font-semibold text-foreground">
-          iHate<span className="text-brand">PDF</span>
+        <span className="whitespace-nowrap font-mono text-lg font-semibold tracking-tight text-foreground">
+          iHate<span className="text-brand/90">PDF</span>
         </span>
       ) : null}
     </div>

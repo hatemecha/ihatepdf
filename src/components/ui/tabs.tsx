@@ -44,6 +44,7 @@ const TabsContent = React.forwardRef<
   <TabsPrimitive.Content
     ref={ref}
     data-slot="tabs-content"
+    tabIndex={-1}
     className={cn(
       "mt-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
       className,

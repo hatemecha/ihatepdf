@@ -21,9 +21,9 @@ describe("pageRanges", () => {
   });
 
   it("rejects inverted and out-of-bounds ranges", () => {
-    expect(parsePageRange("4-2", 5).error).toBe("El rango 4-2 esta invertido.");
+    expect(parsePageRange("4-2", 5).error).toBe("El rango 4-2 está invertido.");
     expect(parsePageRange("1-9", 5).error).toBe(
-      "El rango 1-9 esta fuera del PDF.",
+      "El rango 1-9 está fuera del PDF.",
     );
   });
 
@@ -36,9 +36,9 @@ describe("pageRanges", () => {
 
   it("requires page order to include each page exactly once", () => {
     expect(parsePageOrder("1,2", 3).error).toBe(
-      "El orden debe incluir las 3 paginas.",
+      "El orden debe incluir las 3 páginas.",
     );
-    expect(parsePageOrder("1,1,2", 3).error).toBe("La pagina 1 esta repetida.");
+    expect(parsePageOrder("1,1,2", 3).error).toBe("La página 1 está repetida.");
   });
 
   it("formats a helpful full-range hint", () => {

@@ -4,13 +4,11 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
-  CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { TOOL_STATUS_LABEL, type Tool } from "@/tools/toolCatalog";
+import type { Tool } from "@/tools/toolCatalog";
 
 interface ToolCardProps {
   tool: Tool;
@@ -18,23 +16,17 @@ interface ToolCardProps {
 
 export function ToolCard({ tool }: ToolCardProps) {
   const Icon = tool.icon;
-  const statusLabel = TOOL_STATUS_LABEL[tool.status];
-  const statusVariant = tool.status === "available" ? "brand" : "muted";
 
   return (
-    <Card
-      className="group relative overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-brand hover:shadow-md"
-    >
+    <Card className="group relative h-full min-h-56 overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:border-brand hover:shadow-md focus-within:border-brand focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background">
       <Link
         to={`/herramientas/${tool.slug}`}
-        className="absolute inset-0"
+        className="absolute inset-0 focus-visible:outline-none"
         aria-label={`Abrir ${tool.name}`}
       />
       <CardHeader className="pb-0">
         <div className="flex items-start justify-between gap-4">
-          <div
-            className="flex size-12 items-center justify-center rounded-lg border border-border bg-muted text-foreground transition-colors group-hover:border-brand group-hover:bg-brand group-hover:text-brand-foreground"
-          >
+          <div className="flex size-12 items-center justify-center rounded-lg border border-border bg-muted text-foreground transition-colors group-hover:border-brand group-hover:bg-brand group-hover:text-brand-foreground">
             <Icon className="size-6" aria-hidden />
           </div>
           <ArrowUpRight
@@ -50,10 +42,6 @@ export function ToolCard({ tool }: ToolCardProps) {
           {tool.description}
         </CardDescription>
       </CardHeader>
-      <CardContent />
-      <CardFooter className="pt-0">
-        <Badge variant={statusVariant}>{statusLabel}</Badge>
-      </CardFooter>
     </Card>
   );
 }

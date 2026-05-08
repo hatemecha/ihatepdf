@@ -27,7 +27,7 @@ export function parsePageRange(
   const trimmedValue = value.trim().toLowerCase();
 
   if (!Number.isInteger(pageCount) || pageCount < 1) {
-    return createError("El PDF no tiene paginas disponibles.");
+    return createError("El PDF no tiene páginas disponibles.");
   }
 
   if (
@@ -48,7 +48,7 @@ export function parsePageRange(
     const part = rawPart.trim();
 
     if (!part) {
-      return createError("Hay una coma sin pagina asociada.");
+      return createError("Hay una coma sin página asociada.");
     }
 
     const rangeMatch = part.match(/^(\d+)\s*-\s*(\d+)$/);
@@ -57,11 +57,11 @@ export function parsePageRange(
       const end = Number(rangeMatch[2]);
 
       if (start > end) {
-        return createError(`El rango ${part} esta invertido.`);
+        return createError(`El rango ${part} está invertido.`);
       }
 
       if (start < 1 || end > pageCount) {
-        return createError(`El rango ${part} esta fuera del PDF.`);
+        return createError(`El rango ${part} está fuera del PDF.`);
       }
 
       for (let pageNumber = start; pageNumber <= end; pageNumber += 1) {
@@ -73,18 +73,18 @@ export function parsePageRange(
 
     const pageNumber = Number(part);
     if (!Number.isInteger(pageNumber)) {
-      return createError(`"${part}" no es una pagina valida.`);
+      return createError(`"${part}" no es una página válida.`);
     }
 
     if (pageNumber < 1 || pageNumber > pageCount) {
-      return createError(`La pagina ${pageNumber} esta fuera del PDF.`);
+      return createError(`La página ${pageNumber} está fuera del PDF.`);
     }
 
     selectedPages.add(pageNumber - 1);
   }
 
   if (selectedPages.size === 0) {
-    return createError("Selecciona al menos una pagina.");
+    return createError("Selecciona al menos una página.");
   }
 
   return {
@@ -100,30 +100,30 @@ export function parsePageOrder(
   const trimmedValue = value.trim();
 
   if (!trimmedValue) {
-    return createError("Indica el nuevo orden de paginas.");
+    return createError("Indica el nuevo orden de páginas.");
   }
 
   const pages = trimmedValue.split(",").map((part) => Number(part.trim()));
 
   if (pages.some((pageNumber) => !Number.isInteger(pageNumber))) {
     return createError(
-      "El orden solo puede incluir numeros separados por coma.",
+      "El orden solo puede incluir números separados por coma.",
     );
   }
 
   if (pages.length !== pageCount) {
-    return createError(`El orden debe incluir las ${pageCount} paginas.`);
+    return createError(`El orden debe incluir las ${pageCount} páginas.`);
   }
 
   const seenPages = new Set<number>();
 
   for (const pageNumber of pages) {
     if (pageNumber < 1 || pageNumber > pageCount) {
-      return createError(`La pagina ${pageNumber} esta fuera del PDF.`);
+      return createError(`La página ${pageNumber} está fuera del PDF.`);
     }
 
     if (seenPages.has(pageNumber)) {
-      return createError(`La pagina ${pageNumber} esta repetida.`);
+      return createError(`La página ${pageNumber} está repetida.`);
     }
 
     seenPages.add(pageNumber);

@@ -24,6 +24,8 @@ export function getPdfOperationTransferList(
     case "merge-pdfs":
     case "images-to-pdf":
       return request.files.map((file) => file.buffer);
+    case "images-to-pdf-layout":
+      return request.images.map((image) => image.buffer);
   }
 }
 

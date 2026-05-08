@@ -8,12 +8,12 @@ export function NotFoundPage() {
       <div className="flex flex-col items-center gap-2">
         <p className="font-mono text-base uppercase text-brand">404</p>
         <h1 className="heading-display text-4xl md:text-5xl">
-          No odiamos esa pagina, simplemente no existe.
+          Esa página no existe.
         </h1>
       </div>
       <p className="max-w-md text-muted-foreground">
-        La ruta que pediste no esta en iHatePDF. Probablemente sea una
-        herramienta que todavia no llega o un link viejo.
+        La ruta que pediste no está en iHatePDF. Puede ser una herramienta en
+        desarrollo o un enlace viejo.
       </p>
       <div className="flex gap-2">
         <Button asChild variant="brand">

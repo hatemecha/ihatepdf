@@ -1,34 +1,36 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
-  Combine,
   Download,
+  ImagePlus,
   Loader2,
   Trash2,
 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { PdfFirstPageThumbnail } from "@/features/pdf-tools/shared/PdfFirstPageThumbnail";
 import { ToolWorkspace } from "@/features/pdf-tools/shared/ToolWorkspace";
 import {
   formatFileSize,
-  validateMergePdfFiles,
+  validateImageFiles,
 } from "@/features/pdf-tools/shared/fileValidation";
 import {
   createPdfOperationWorker,
   runPdfOperation,
 } from "@/features/pdf-tools/shared/pdfOperationClient";
-import type { PdfInputFile } from "@/features/pdf-tools/shared/pdfOperation.types";
+import type { ImageInputFile } from "@/features/pdf-tools/shared/pdfOperation.types";
 
-interface SelectedPdfFile {
+interface SelectedImageFile {
   id: string;
   file: File;
-  pageCount: number | null;
+  previewUrl: string;
 }
 
-const MERGED_FILE_NAME = "ihatepdf-merged.pdf";
+interface DownloadResult {
+  url: string;
+  fileName: string;
+}
 
 function createFileId(file: File): string {
   return `${file.name}-${file.size}-${file.lastModified}-${Math.random()
@@ -36,65 +38,72 @@ function createFileId(file: File): string {
     .slice(2)}`;
 }
 
-function getSelectedFilesSize(files: SelectedPdfFile[]): number {
+function getSelectedFilesSize(files: SelectedImageFile[]): number {
   return files.reduce((sum, item) => sum + item.file.size, 0);
 }
 
-export function MergePdfTool() {
+interface ImageToPdfSimpleModeProps {
+  registerFilesForLayout?: (files: File[]) => void;
+}
+
+export function ImageToPdfSimpleMode({
+  registerFilesForLayout,
+}: ImageToPdfSimpleModeProps = {}) {
   const workerRef = useRef<Worker | null>(null);
   const resultUrlRef = useRef<string | null>(null);
 
-  const [selectedFiles, setSelectedFiles] = useState<SelectedPdfFile[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<SelectedImageFile[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(
+    null,
+  );
   const [isProcessing, setIsProcessing] = useState(false);
 
   const totalSize = useMemo(
     () => getSelectedFilesSize(selectedFiles),
     [selectedFiles],
   );
-  const totalPages = useMemo(
-    () =>
-      selectedFiles.reduce((sum, item) => sum + (item.pageCount ?? 0), 0),
-    [selectedFiles],
-  );
-  const canMerge = selectedFiles.length >= 2 && !isProcessing;
+  const canConvert = selectedFiles.length > 0 && !isProcessing;
 
-  function replaceResultUrl(nextUrl: string | null) {
+  function replaceDownloadResult(nextResult: DownloadResult | null) {
     if (resultUrlRef.current) {
       URL.revokeObjectURL(resultUrlRef.current);
     }
-    resultUrlRef.current = nextUrl;
-    setResultUrl(nextUrl);
+    resultUrlRef.current = nextResult?.url ?? null;
+    setDownloadResult(nextResult);
   }
 
-  function clearResult() {
-    replaceResultUrl(null);
+  function clearDownloadResult() {
+    replaceDownloadResult(null);
   }
 
-  function updateSelectedFiles(nextFiles: SelectedPdfFile[]) {
+  function disposePreviewUrls(items: SelectedImageFile[]) {
+    for (const item of items) {
+      URL.revokeObjectURL(item.previewUrl);
+    }
+  }
+
+  function updateSelectedFiles(nextFiles: SelectedImageFile[]) {
     setSelectedFiles(nextFiles);
     setErrorMessage(null);
-    clearResult();
+    clearDownloadResult();
   }
 
   function handleFilesSelected(incomingFiles: File[]) {
-    const nextFiles: SelectedPdfFile[] = [
-      ...selectedFiles,
-      ...incomingFiles.map((file) => ({
-        id: createFileId(file),
-        file,
-        pageCount: null,
-      })),
-    ];
+    const newItems: SelectedImageFile[] = incomingFiles.map((file) => ({
+      id: createFileId(file),
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
 
-    const validation = validateMergePdfFiles(
-      nextFiles.map((item) => item.file),
-      { requireMinimumFileCount: false },
-    );
+    const nextFiles = [...selectedFiles, ...newItems];
+    const validation = validateImageFiles(nextFiles.map(({ file }) => file));
 
     if (!validation.isValid) {
-      setErrorMessage(validation.errors[0] ?? "No se pudieron agregar PDFs.");
+      disposePreviewUrls(newItems);
+      setErrorMessage(
+        validation.errors[0] ?? "No se pudieron agregar imágenes.",
+      );
       return;
     }
 
@@ -102,9 +111,11 @@ export function MergePdfTool() {
   }
 
   function removeFile(fileId: string) {
-    updateSelectedFiles(
-      selectedFiles.filter((item) => item.id !== fileId),
-    );
+    const removed = selectedFiles.find((item) => item.id === fileId);
+    if (removed) {
+      URL.revokeObjectURL(removed.previewUrl);
+    }
+    updateSelectedFiles(selectedFiles.filter((item) => item.id !== fileId));
   }
 
   function moveFile(fileId: string, direction: -1 | 1) {
@@ -123,64 +134,61 @@ export function MergePdfTool() {
     updateSelectedFiles(nextFiles);
   }
 
-  const handlePageCountResolved = useCallback(
-    (id: string, pageCount: number) => {
-      setSelectedFiles((current) =>
-        current.map((item) =>
-          item.id === id ? { ...item, pageCount } : item,
-        ),
-      );
-    },
-    [],
-  );
+  function clearList() {
+    disposePreviewUrls(selectedFiles);
+    updateSelectedFiles([]);
+  }
 
-  function cancelMerge() {
+  function cancelConversion() {
     workerRef.current?.terminate();
     workerRef.current = null;
     setIsProcessing(false);
     setErrorMessage("Operación cancelada.");
   }
 
-  async function readFilesForWorker(): Promise<PdfInputFile[]> {
+  async function readFilesForWorker(): Promise<ImageInputFile[]> {
     return Promise.all(
-      selectedFiles.map(async (item) => ({
-        name: item.file.name,
-        buffer: await item.file.arrayBuffer(),
+      selectedFiles.map(async ({ file }) => ({
+        name: file.name,
+        mimeType: file.type,
+        buffer: await file.arrayBuffer(),
       })),
     );
   }
 
-  async function handleMerge() {
-    const files = selectedFiles.map((item) => item.file);
-    const validation = validateMergePdfFiles(files);
-
+  async function handleConvert() {
+    const validation = validateImageFiles(
+      selectedFiles.map(({ file }) => file),
+    );
     if (!validation.isValid) {
-      setErrorMessage(validation.errors[0] ?? "No se pudo iniciar la unión.");
+      setErrorMessage(
+        validation.errors[0] ?? "No se pudo iniciar la conversión.",
+      );
       return;
     }
 
     setIsProcessing(true);
     setErrorMessage(null);
-    clearResult();
+    clearDownloadResult();
 
     try {
-      const workerFiles = await readFilesForWorker();
       const worker = createPdfOperationWorker();
       workerRef.current = worker;
       const result = await runPdfOperation(worker, {
-        kind: "merge-pdfs",
-        files: workerFiles,
+        kind: "images-to-pdf",
+        files: await readFilesForWorker(),
       });
       if (result.kind !== "file") {
-        throw new Error("La unión no generó un archivo descargable.");
+        throw new Error("La conversión no generó un PDF descargable.");
       }
-      const blob = new Blob([result.buffer], { type: "application/pdf" });
-      replaceResultUrl(URL.createObjectURL(blob));
+      const blob = new Blob([result.buffer], { type: result.mimeType });
+      const url = URL.createObjectURL(blob);
+      replaceDownloadResult({ url, fileName: result.fileName });
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : "No se pudo unir el PDF. Intentalo con otros archivos.";
+          : "No se pudieron convertir las imágenes.";
       setErrorMessage(message);
     } finally {
       workerRef.current?.terminate();
@@ -190,43 +198,44 @@ export function MergePdfTool() {
   }
 
   useEffect(() => {
+    registerFilesForLayout?.(selectedFiles.map((item) => item.file));
+  }, [registerFilesForLayout, selectedFiles]);
+
+  useEffect(() => {
     return () => {
       workerRef.current?.terminate();
       if (resultUrlRef.current) {
         URL.revokeObjectURL(resultUrlRef.current);
       }
+      disposePreviewUrls(selectedFiles);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const preview = (
-    <div className="h-full min-h-0 overflow-y-auto rounded-lg border border-border bg-muted/40 p-4">
-      <ol className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+    <div className="h-full min-h-0 overflow-y-auto rounded-xl border border-border bg-muted/35 p-4">
+      <ol className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-4">
         {selectedFiles.map((item, index) => (
           <li
             key={item.id}
-            className="group flex flex-col gap-2 rounded-lg border border-border bg-card p-3 shadow-sm"
+            className="group flex flex-col gap-2 rounded-xl border border-border bg-card p-2 shadow-[0_12px_24px_-20px_rgba(0,0,0,0.55)] transition-colors hover:border-foreground/35"
           >
-            <div className="relative">
-              <PdfFirstPageThumbnail
-                file={item.file}
-                onPageCountResolved={(count) =>
-                  handlePageCountResolved(item.id, count)
-                }
+            <div className="relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-lg bg-white ring-1 ring-inset ring-neutral-300/65">
+              <img
+                src={item.previewUrl}
+                alt={item.file.name}
+                className="max-h-full max-w-full object-contain"
               />
               <span className="absolute left-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-foreground text-background text-xs font-bold shadow">
                 {index + 1}
               </span>
             </div>
             <div className="min-w-0">
-              <p
-                className="truncate text-sm font-medium"
-                title={item.file.name}
-              >
+              <p className="truncate text-xs font-medium" title={item.file.name}>
                 {item.file.name}
               </p>
               <p className="text-xs text-muted-foreground">
                 {formatFileSize(item.file.size)}
-                {item.pageCount ? ` · ${item.pageCount} pág.` : ""}
               </p>
             </div>
             <div className="flex items-center justify-between gap-1">
@@ -235,37 +244,37 @@ export function MergePdfTool() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-8"
+                  className="size-7"
                   aria-label={`Mover ${item.file.name} a la izquierda`}
                   onClick={() => moveFile(item.id, -1)}
                   disabled={index === 0 || isProcessing}
                 >
-                  <ArrowLeft className="size-4" />
+                  <ArrowLeft className="size-3.5" />
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-8"
+                  className="size-7"
                   aria-label={`Mover ${item.file.name} a la derecha`}
                   onClick={() => moveFile(item.id, 1)}
                   disabled={
                     index === selectedFiles.length - 1 || isProcessing
                   }
                 >
-                  <ArrowRight className="size-4" />
+                  <ArrowRight className="size-3.5" />
                 </Button>
               </div>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="size-8"
+                className="size-7"
                 aria-label={`Quitar ${item.file.name}`}
                 onClick={() => removeFile(item.id)}
                 disabled={isProcessing}
               >
-                <Trash2 className="size-4" />
+                <Trash2 className="size-3.5" />
               </Button>
             </div>
           </li>
@@ -277,23 +286,15 @@ export function MergePdfTool() {
   const sidebar = (
     <div className="flex flex-col gap-4">
       <dl className="grid grid-cols-2 gap-3">
-        <div className="rounded-md border border-border bg-muted/40 p-3">
+        <div className="rounded-lg border border-border bg-muted/35 p-3">
           <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-            Archivos
+            Imágenes
           </dt>
           <dd className="mt-1 text-2xl font-semibold tabular-nums">
             {selectedFiles.length}
           </dd>
         </div>
-        <div className="rounded-md border border-border bg-muted/40 p-3">
-          <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-            Páginas
-          </dt>
-          <dd className="mt-1 text-2xl font-semibold tabular-nums">
-            {totalPages || "—"}
-          </dd>
-        </div>
-        <div className="col-span-2 rounded-md border border-border bg-muted/40 p-3">
+        <div className="rounded-lg border border-border bg-muted/35 p-3">
           <dt className="text-xs uppercase tracking-wide text-muted-foreground">
             Peso total
           </dt>
@@ -302,21 +303,16 @@ export function MergePdfTool() {
           </dd>
         </div>
       </dl>
-      <p className="text-sm text-muted-foreground">
-        El PDF final respeta el orden de la izquierda. Reordena los archivos
-        con las flechas de cada tarjeta antes de unir.
+      <p className="rounded-lg border border-border bg-background/55 px-3 py-2 text-sm text-muted-foreground">
+        Cada imagen se inserta como una página del PDF, en el orden de la
+        izquierda.
       </p>
-      {selectedFiles.length === 1 ? (
-        <p className="text-sm text-muted-foreground">
-          Agrega al menos otro PDF para habilitar la unión.
-        </p>
-      ) : null}
       {selectedFiles.length > 0 ? (
         <Button
           type="button"
           variant="outline"
           size="sm"
-          onClick={() => updateSelectedFiles([])}
+          onClick={clearList}
           disabled={isProcessing}
         >
           Limpiar lista
@@ -331,8 +327,8 @@ export function MergePdfTool() {
         type="button"
         variant="brand"
         size="lg"
-        onClick={handleMerge}
-        disabled={!canMerge}
+        onClick={handleConvert}
+        disabled={!canConvert}
         className="w-full"
       >
         {isProcessing ? (
@@ -342,16 +338,16 @@ export function MergePdfTool() {
             aria-hidden
           />
         ) : (
-          <Combine data-icon="inline-start" aria-hidden />
+          <ImagePlus data-icon="inline-start" aria-hidden />
         )}
-        {isProcessing ? "Uniendo PDFs" : "Unir PDFs"}
+        {isProcessing ? "Convirtiendo imágenes" : "Crear PDF"}
       </Button>
       {isProcessing ? (
         <Button
           type="button"
           variant="outline"
           size="sm"
-          onClick={cancelMerge}
+          onClick={cancelConversion}
           className="w-full"
         >
           Cancelar
@@ -360,17 +356,17 @@ export function MergePdfTool() {
     </>
   );
 
-  const resultBanner = resultUrl ? (
+  const resultBanner = downloadResult ? (
     <Alert variant="brand" role="status">
       <Download />
       <AlertTitle>PDF listo</AlertTitle>
       <AlertDescription>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <span>El archivo unido está listo para descargar.</span>
+          <span>Las imágenes se convirtieron correctamente.</span>
           <Button asChild variant="brand" size="sm">
-            <a href={resultUrl} download={MERGED_FILE_NAME}>
+            <a href={downloadResult.url} download={downloadResult.fileName}>
               <Download data-icon="inline-start" aria-hidden />
-              Descargar
+              Descargar PDF
             </a>
           </Button>
         </div>
@@ -380,21 +376,21 @@ export function MergePdfTool() {
 
   return (
     <ToolWorkspace
-      accept="application/pdf,.pdf"
+      accept="image/jpeg,image/png,.jpg,.jpeg,.png"
       multiple
       hasContent={selectedFiles.length > 0}
       isProcessing={isProcessing}
       onFilesSelected={handleFilesSelected}
-      emptyTitle="Selecciona PDFs para unir"
-      emptyDescription="Arrastra entre 2 y 20 PDFs aquí o usa el botón. El orden de los archivos define el orden final del documento."
-      emptyActionLabel="Seleccionar PDFs"
-      emptyHint="Hasta 20 archivos · 50 MB por archivo · 200 MB en total"
+      emptyTitle="Selecciona imágenes"
+      emptyDescription="Arrastrá JPG o PNG acá o usá el botón. Respetamos el orden y generamos un PDF listo para descargar."
+      emptyActionLabel="Seleccionar imágenes"
+      emptyHint="Hasta 40 imágenes · 20 MB por imagen · 200 MB en total"
       preview={preview}
-      sidebarTitle="Unir PDFs"
-      sidebarDescription="Combina varios PDFs en un solo archivo."
+      sidebarTitle="Imagen a PDF"
+      sidebarDescription="Convierte JPG o PNG en un PDF."
       sidebar={sidebar}
       primaryAction={primaryAction}
-      addMore={{ label: "Agregar más PDFs" }}
+      addMore={{ label: "Agregar más imágenes" }}
       errorMessage={errorMessage}
       resultBanner={resultBanner}
     />

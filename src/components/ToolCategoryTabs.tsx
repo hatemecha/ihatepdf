@@ -60,9 +60,11 @@ export function ToolCategoryTabs() {
                   {category.description}
                 </p>
               </header>
-              <div className="grid grid-cols-1 justify-items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="flex flex-wrap justify-center gap-5">
                 {tools.map((tool) => (
-                  <ToolCard key={tool.slug} tool={tool} />
+                  <div key={tool.slug} className="w-full sm:w-80">
+                    <ToolCard tool={tool} />
+                  </div>
                 ))}
               </div>
             </section>
@@ -70,7 +72,7 @@ export function ToolCategoryTabs() {
         })}
         {!hasAnyTools ? (
           <p className="text-center text-base text-muted-foreground">
-            Todavia no hay herramientas disponibles.
+            Todavía no hay herramientas disponibles.
           </p>
         ) : null}
       </TabsContent>
@@ -78,20 +80,18 @@ export function ToolCategoryTabs() {
       {visibleCategories.map((category) => {
         const tools = getToolsByCategory(category.id);
         return (
-          <TabsContent
-            key={category.id}
-            value={category.id}
-            className="mt-10"
-          >
+          <TabsContent key={category.id} value={category.id} className="mt-10">
             <header className="mb-8 space-y-2 text-center">
               <h3 className="text-xl font-semibold">{category.label}</h3>
               <p className="mx-auto max-w-2xl text-balance text-base text-muted-foreground">
                 {category.description}
               </p>
             </header>
-            <div className="grid grid-cols-1 justify-items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="flex flex-wrap justify-center gap-5">
               {tools.map((tool) => (
-                <ToolCard key={tool.slug} tool={tool} />
+                <div key={tool.slug} className="w-full sm:w-80">
+                  <ToolCard tool={tool} />
+                </div>
               ))}
             </div>
           </TabsContent>

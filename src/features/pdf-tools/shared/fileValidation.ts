@@ -138,13 +138,13 @@ export function validateImageFiles(
 
   if (files.length > MAX_IMAGE_FILE_COUNT) {
     errors.push(
-      `Puedes convertir hasta ${MAX_IMAGE_FILE_COUNT} imagenes por vez.`,
+      `Puedes convertir hasta ${MAX_IMAGE_FILE_COUNT} imágenes por vez.`,
     );
   }
 
   const invalidFiles = files.filter((file) => !isSupportedImageFile(file));
   if (invalidFiles.length > 0) {
-    errors.push("Solo se admiten imagenes JPG o PNG.");
+    errors.push("Solo se admiten imágenes JPG o PNG.");
   }
 
   const oversizedFiles = files.filter(

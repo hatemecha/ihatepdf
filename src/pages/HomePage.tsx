@@ -20,9 +20,8 @@ export function HomePage() {
               iHatePDF
             </h1>
             <p className="text-balance text-lg text-muted-foreground">
-              Herramientas PDF sencillas: unir, dividir, extraer, reordenar,
-              rotar y convertir. Nada se sube a servidores; trabajas sobre tus
-              archivos en esta sesion.
+              Edita PDFs sin subirlos: une, divide, ordena, rota y convierte
+              archivos desde el navegador. Sin cuentas, sin colas, sin vueltas.
             </p>
           </div>
         </div>

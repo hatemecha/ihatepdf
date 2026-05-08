@@ -6,7 +6,8 @@ export type PdfOperationKind =
   | "delete-pages"
   | "reorder-pages"
   | "rotate-pages"
-  | "images-to-pdf";
+  | "images-to-pdf"
+  | "images-to-pdf-layout";
 
 export interface PdfInputFile {
   name: string;
@@ -15,6 +16,28 @@ export interface PdfInputFile {
 
 export interface ImageInputFile extends PdfInputFile {
   mimeType: string;
+}
+
+export interface LayoutImageAsset {
+  id: string;
+  name: string;
+  mimeType: string;
+  buffer: ArrayBuffer;
+}
+
+export interface LayoutPageElement {
+  imageId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+}
+
+export interface LayoutPagePayload {
+  width: number;
+  height: number;
+  elements: LayoutPageElement[];
 }
 
 export type PdfOperationRequest =
@@ -54,6 +77,11 @@ export type PdfOperationRequest =
   | {
       kind: "images-to-pdf";
       files: ImageInputFile[];
+    }
+  | {
+      kind: "images-to-pdf-layout";
+      images: LayoutImageAsset[];
+      pages: LayoutPagePayload[];
     };
 
 export type PdfOperationResult =

@@ -33,7 +33,7 @@ export function SiteFooter() {
             className="inline-flex shrink-0 items-center gap-2 rounded-md px-1 py-1 text-sm font-medium text-foreground transition-colors hover:text-brand sm:pt-0.5"
           >
             <GitHubIcon className="size-4 shrink-0" aria-hidden />
-            Codigo
+            Código
           </a>
         </div>
       </div>

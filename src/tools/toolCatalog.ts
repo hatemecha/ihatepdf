@@ -34,6 +34,7 @@ export interface Tool {
   slug: string;
   name: string;
   description: string;
+  longDescription?: string;
   category: ToolCategoryId;
   status: ToolStatus;
   implementation: ToolImplementation;
@@ -45,17 +46,17 @@ export const TOOL_CATEGORIES: ToolCategory[] = [
   {
     id: "organize",
     label: "Organizar PDF",
-    description: "Unir, dividir, extraer, eliminar y ordenar paginas.",
+    description: "Une, separa y reordena páginas sin salir del navegador.",
   },
   {
     id: "convert",
     label: "Convertir PDF",
-    description: "Pasar entre PDF e imagenes desde el navegador.",
+    description: "Convierte entre PDF e imágenes con descargas listas.",
   },
   {
     id: "edit",
     label: "Editar PDF",
-    description: "Rotar paginas y ajustar documentos existentes.",
+    description: "Ajustes puntuales para documentos que ya existen.",
   },
 ];
 
@@ -63,7 +64,9 @@ export const TOOLS: Tool[] = [
   {
     slug: "merge",
     name: "Unir PDFs",
-    description: "Combina varios PDFs en un solo archivo descargable.",
+    description: "Combina varios PDFs en un solo archivo.",
+    longDescription:
+      "Ordena tus documentos, une las páginas y descarga un PDF final sin subir archivos a un servidor.",
     category: "organize",
     status: "available",
     implementation: "merge-pdfs",
@@ -73,7 +76,9 @@ export const TOOLS: Tool[] = [
   {
     slug: "split",
     name: "Dividir PDF",
-    description: "Genera un ZIP con cada pagina como PDF independiente.",
+    description: "Genera un ZIP con un PDF por página.",
+    longDescription:
+      "Separa un documento completo en archivos individuales, uno por cada página del PDF original.",
     category: "organize",
     status: "available",
     implementation: "split-pdf",
@@ -81,8 +86,10 @@ export const TOOLS: Tool[] = [
   },
   {
     slug: "extract-pages",
-    name: "Extraer paginas",
-    description: "Crea un nuevo PDF solo con las paginas que elijas.",
+    name: "Extraer páginas",
+    description: "Crea un PDF con las páginas que elijas.",
+    longDescription:
+      "Elige rangos o páginas sueltas y crea un nuevo PDF solo con ese contenido.",
     category: "organize",
     status: "available",
     implementation: "extract-pages",
@@ -90,8 +97,10 @@ export const TOOLS: Tool[] = [
   },
   {
     slug: "delete-pages",
-    name: "Eliminar paginas",
-    description: "Quita paginas seleccionadas y descarga el PDF resultante.",
+    name: "Eliminar páginas",
+    description: "Quita páginas y conserva el resto.",
+    longDescription:
+      "Marca las páginas que sobran y descarga una copia del documento sin ellas.",
     category: "organize",
     status: "available",
     implementation: "delete-pages",
@@ -99,8 +108,10 @@ export const TOOLS: Tool[] = [
   },
   {
     slug: "reorder",
-    name: "Reordenar paginas",
-    description: "Define el orden final de todas las paginas del documento.",
+    name: "Reordenar páginas",
+    description: "Define el orden final del documento.",
+    longDescription:
+      "Escribe el orden de páginas que necesitas y genera una copia organizada del PDF.",
     category: "organize",
     status: "available",
     implementation: "reorder-pages",
@@ -108,8 +119,10 @@ export const TOOLS: Tool[] = [
   },
   {
     slug: "rotate",
-    name: "Rotar paginas",
-    description: "Rota paginas individuales o todo el documento.",
+    name: "Rotar páginas",
+    description: "Gira páginas individuales o todo el PDF.",
+    longDescription:
+      "Corrige la orientación de páginas puntuales o del documento completo antes de descargarlo.",
     category: "edit",
     status: "available",
     implementation: "rotate-pages",
@@ -118,7 +131,9 @@ export const TOOLS: Tool[] = [
   {
     slug: "images-to-pdf",
     name: "Imagen a PDF",
-    description: "Convierte JPG o PNG en un PDF listo para compartir.",
+    description: "Convierte JPG o PNG en PDF.",
+    longDescription:
+      "Carga imágenes, define el orden de páginas y crea un PDF listo para compartir.",
     category: "convert",
     status: "available",
     implementation: "images-to-pdf",
@@ -127,8 +142,10 @@ export const TOOLS: Tool[] = [
   },
   {
     slug: "pdf-to-images",
-    name: "PDF a imagenes",
-    description: "Exporta paginas del PDF como imagenes PNG en un ZIP.",
+    name: "PDF a imágenes",
+    description: "Exporta páginas como PNG en un ZIP.",
+    longDescription:
+      "Selecciona páginas del PDF y expórtalas como imágenes PNG empaquetadas en un ZIP.",
     category: "convert",
     status: "available",
     implementation: "pdf-to-images",

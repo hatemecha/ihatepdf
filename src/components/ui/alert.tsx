@@ -24,15 +24,20 @@ const alertVariants = cva(
 const Alert = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
->(({ className, variant, ...props }, ref) => (
-  <div
-    ref={ref}
-    role="alert"
-    data-slot="alert"
-    className={cn(alertVariants({ variant }), className)}
-    {...props}
-  />
-));
+>(({ className, role, variant, ...props }, ref) => {
+  const semanticRole =
+    role ?? (variant === "destructive" ? "alert" : undefined);
+
+  return (
+    <div
+      ref={ref}
+      role={semanticRole}
+      data-slot="alert"
+      className={cn(alertVariants({ variant }), className)}
+      {...props}
+    />
+  );
+});
 Alert.displayName = "Alert";
 
 const AlertTitle = React.forwardRef<

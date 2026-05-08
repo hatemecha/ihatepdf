@@ -12,24 +12,24 @@ Herramientas disponibles:
 
 - Unir PDFs
 - Dividir PDF
-- Extraer paginas
-- Eliminar paginas
-- Reordenar paginas
-- Rotar paginas
+- Extraer páginas
+- Eliminar páginas
+- Reordenar páginas
+- Rotar páginas
 - Imagen a PDF
-- PDF a imagenes
+- PDF a imágenes
 
-La grilla publica muestra herramientas con procesamiento real, validaciones,
+La grilla pública muestra herramientas con procesamiento real, validaciones,
 errores claros y descarga del resultado.
 
 ## Principios
 
 - Los documentos no se suben a servidores para procesarse.
-- La experiencia debe funcionar desde una web publica, sin pedirle al usuario
+- La experiencia debe funcionar desde una web pública, sin pedirle al usuario
   que instale o levante nada.
 - Cada herramienta debe validar tipo, peso y cantidad de archivos.
-- Los errores deben explicar que paso y como continuar.
-- El codigo debe mantenerse modular, tipado y facil de auditar.
+- Los errores deben explicar qué pasó y cómo continuar.
+- El código debe mantenerse modular, tipado y fácil de auditar.
 
 ## Stack
 
@@ -56,13 +56,34 @@ npm run dev
 ### Comandos
 
 ```bash
-npm run build         # build de produccion
+npm run build         # build de producción
+npm run build:pages   # build para GitHub Pages con fallback SPA
 npm run preview       # servir el build
-npm run typecheck     # verificacion de tipos
-npm run lint          # analisis estatico
+npm run typecheck     # verificación de tipos
+npm run lint          # análisis estático
 npm run test          # tests unitarios
 npm run format:check  # verificar formato
 ```
+
+## Deploy en GitHub Pages
+
+El repositorio incluye `.github/workflows/deploy-pages.yml` para publicar en
+GitHub Pages desde `main`.
+
+Pasos en GitHub:
+
+1. Ir a `Settings` -> `Pages`.
+2. En `Build and deployment`, seleccionar `GitHub Actions`.
+3. Hacer push a `main` o ejecutar el workflow manualmente desde `Actions`.
+
+Para este repo (`hatemecha/iHatePDF`), el workflow compila con:
+
+```bash
+VITE_BASE_PATH=/iHatePDF/ npm run build:pages
+```
+
+El build copia `dist/index.html` a `dist/404.html` para que rutas como
+`/iHatePDF/herramientas/merge` funcionen al refrescar la página.
 
 ## Deploy con dominio
 
@@ -99,9 +120,9 @@ iHatePDF/
     components/ # componentes propios + ui base
     features/   # herramientas PDF reales
     lib/        # utilidades compartidas
-    pages/      # paginas principales
+    pages/      # páginas principales
     styles/     # globals, tokens y utilidades CSS
-    tools/      # catalogo publico de herramientas
+    tools/      # catálogo público de herramientas
     main.tsx    # entrada React
   vercel.json
   vite.config.ts
@@ -115,7 +136,7 @@ iHatePDF/
 - Desbloquear PDF
 - Ver y eliminar metadatos
 - Marca de agua
-- Numerar paginas
+- Numerar páginas
 - OCR
 - PDF a texto
 - Modo batch

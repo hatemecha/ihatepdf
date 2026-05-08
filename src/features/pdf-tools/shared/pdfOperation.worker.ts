@@ -3,6 +3,8 @@ import { PDFDocument, degrees } from "pdf-lib";
 
 import type {
   ImageInputFile,
+  LayoutImageAsset,
+  LayoutPagePayload,
   PdfInputFile,
   PdfOperationRequest,
   PdfOperationResponse,
@@ -41,14 +43,14 @@ function createErrorMessage(error: unknown): string {
   const message = rawMessage.toLowerCase();
 
   if (message.includes("encrypted")) {
-    return "El PDF esta protegido con contrasena. Desbloquealo antes de usar esta herramienta.";
+    return "El PDF está protegido con contraseña. Desbloquéalo antes de usar esta herramienta.";
   }
 
   if (message.includes("invalid") || message.includes("parse")) {
-    return "El archivo no parece ser un PDF valido.";
+    return "El archivo no parece ser un PDF válido.";
   }
 
-  return "No se pudo procesar el archivo. Revisa que no este corrupto o protegido.";
+  return "No se pudo procesar el archivo. Revisa que no esté corrupto o protegido.";
 }
 
 async function loadPdf(file: PdfInputFile): Promise<PDFDocument> {
@@ -137,7 +139,7 @@ async function deletePages(
     .filter((pageIndex) => !pagesToDeleteSet.has(pageIndex));
 
   if (pagesToKeep.length === 0) {
-    throw new Error("No puedes eliminar todas las paginas del PDF.");
+    throw new Error("No puedes eliminar todas las páginas del PDF.");
   }
 
   const outputDocument = await copyPagesToNewDocument(
@@ -233,6 +235,82 @@ async function imagesToPdf(
   );
 }
 
+async function embedLayoutImage(
+  outputDocument: PDFDocument,
+  asset: LayoutImageAsset,
+) {
+  const normalizedName = asset.name.toLowerCase();
+
+  if (asset.mimeType === "image/png" || normalizedName.endsWith(".png")) {
+    return outputDocument.embedPng(asset.buffer);
+  }
+
+  return outputDocument.embedJpg(asset.buffer);
+}
+
+async function imagesToPdfLayout(
+  images: LayoutImageAsset[],
+  pages: LayoutPagePayload[],
+): Promise<PdfOperationResult> {
+  if (pages.length === 0) {
+    throw new Error("Agrega al menos una página con imágenes.");
+  }
+
+  const outputDocument = await PDFDocument.create();
+  const embeddedByImageId = new Map<
+    string,
+    Awaited<ReturnType<typeof embedLayoutImage>>
+  >();
+
+  for (const asset of images) {
+    embeddedByImageId.set(
+      asset.id,
+      await embedLayoutImage(outputDocument, asset),
+    );
+  }
+
+  for (const pageData of pages) {
+    const page = outputDocument.addPage([pageData.width, pageData.height]);
+
+    for (const element of pageData.elements) {
+      const embedded = embeddedByImageId.get(element.imageId);
+      if (!embedded) {
+        continue;
+      }
+
+      const radians = (element.rotation * Math.PI) / 180;
+      const cosTheta = Math.cos(radians);
+      const sinTheta = Math.sin(radians);
+
+      const centerX = element.x + element.width / 2;
+      const centerYPdf = pageData.height - (element.y + element.height / 2);
+
+      const drawX =
+        centerX -
+        (element.width / 2) * cosTheta -
+        (element.height / 2) * sinTheta;
+      const drawY =
+        centerYPdf +
+        (element.width / 2) * sinTheta -
+        (element.height / 2) * cosTheta;
+
+      page.drawImage(embedded, {
+        x: drawX,
+        y: drawY,
+        width: element.width,
+        height: element.height,
+        rotate: degrees(-element.rotation),
+      });
+    }
+  }
+
+  return createOutputFile(
+    "ihatepdf-images-layout.pdf",
+    PDF_MIME_TYPE,
+    await outputDocument.save(),
+  );
+}
+
 async function runOperation(
   request: PdfOperationRequest,
 ): Promise<PdfOperationResult> {
@@ -253,6 +331,8 @@ async function runOperation(
       return rotatePages(request.file, request.pages, request.angle);
     case "images-to-pdf":
       return imagesToPdf(request.files);
+    case "images-to-pdf-layout":
+      return imagesToPdfLayout(request.images, request.pages);
   }
 }
 

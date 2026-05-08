@@ -17,7 +17,7 @@ export function SiteHeader() {
         <Link
           to="/"
           aria-label="iHatePDF inicio"
-          className="min-w-0 shrink md:justify-self-start"
+          className="min-w-0 shrink-0 md:justify-self-start"
         >
           <Logo />
         </Link>
@@ -53,7 +53,7 @@ export function SiteHeader() {
           >
             <a href={REPO_URL} target="_blank" rel="noreferrer noopener">
               <GitHubIcon />
-              Codigo
+              Código
             </a>
           </Button>
           <Button asChild variant="brand" size="sm">

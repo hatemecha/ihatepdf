@@ -54,12 +54,44 @@
 @layer base {
   * {
     @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    scrollbar-gutter: stable;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    margin-block: 4px;
+    margin-inline: 4px;
+    background: var(--scrollbar-track);
+    border-radius: 9999px;
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--foreground) 10%, transparent);
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-color: var(--scrollbar-thumb);
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+    background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
   }
 
   html,
   body,
   #root {
-    @apply min-h-screen bg-background text-foreground antialiased;
+    @apply h-full bg-background text-foreground antialiased;
   }
 
   html {
@@ -76,5 +108,19 @@
   ::selection {
     background: var(--brand);
     color: var(--brand-foreground);
+  }
+}
+
+@layer components {
+  /** Inputs alineados al panel ( borde legible, esquinas redondeadas ). */
+  .field-input {
+    @apply w-full min-w-0 rounded-lg border-2 border-input bg-background shadow-none outline-none transition-[border-color,box-shadow];
+  }
+  .field-input:hover {
+    border-color: color-mix(in oklch, var(--input) 82%, var(--foreground));
+  }
+  .field-input:focus-visible {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring) 35%, transparent);
   }
 }

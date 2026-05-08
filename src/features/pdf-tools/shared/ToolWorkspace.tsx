@@ -1,0 +1,288 @@
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+  type ReactNode,
+} from "react";
+import { Plus, Upload } from "lucide-react";
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+export interface ToolWorkspaceProps {
+  accept: string;
+  multiple?: boolean;
+  hasContent: boolean;
+  isProcessing?: boolean;
+  onFilesSelected: (files: File[]) => void;
+  emptyTitle: string;
+  emptyDescription: string;
+  emptyActionLabel: string;
+  emptyHint?: string;
+  preview: ReactNode;
+  sidebarTitle: string;
+  sidebarDescription?: string;
+  sidebar: ReactNode;
+  primaryAction: ReactNode;
+  secondaryAction?: ReactNode;
+  addMore?: {
+    label: string;
+  };
+  errorMessage?: string | null;
+  resultBanner?: ReactNode;
+}
+
+export function ToolWorkspace({
+  accept,
+  multiple = false,
+  hasContent,
+  isProcessing,
+  onFilesSelected,
+  emptyTitle,
+  emptyDescription,
+  emptyActionLabel,
+  emptyHint,
+  preview,
+  sidebarTitle,
+  sidebarDescription,
+  sidebar,
+  primaryAction,
+  secondaryAction,
+  addMore,
+  errorMessage,
+  resultBanner,
+}: ToolWorkspaceProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function handleInputChange(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (files.length > 0) {
+      onFilesSelected(files);
+    }
+  }
+
+  function openPicker() {
+    inputRef.current?.click();
+  }
+
+  return (
+    <div className="flex h-full min-w-0 flex-col gap-3 overflow-y-auto lg:overflow-hidden">
+      <input
+        ref={inputRef}
+        className="sr-only"
+        type="file"
+        accept={accept}
+        multiple={multiple}
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={handleInputChange}
+      />
+
+      {hasContent ? (
+        <div className="grid grid-cols-1 gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:overflow-hidden">
+            <div className="min-h-[420px] lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+              {preview}
+            </div>
+            {errorMessage ? (
+              <Alert variant="destructive" className="shrink-0">
+                <AlertTitle>No se pudo continuar</AlertTitle>
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            ) : null}
+            {resultBanner ? (
+              <div className="shrink-0">{resultBanner}</div>
+            ) : null}
+          </div>
+
+          <aside className="flex min-w-0 flex-col rounded-lg border border-border bg-card lg:min-h-0 lg:overflow-hidden">
+            <header className="shrink-0 border-b border-border px-5 py-4">
+              <h2 className="text-lg font-semibold">{sidebarTitle}</h2>
+              {sidebarDescription ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {sidebarDescription}
+                </p>
+              ) : null}
+            </header>
+
+            <div className="px-5 py-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+              {sidebar}
+            </div>
+
+            <footer className="flex shrink-0 flex-col gap-2 border-t border-border bg-muted/30 px-5 py-4">
+              {addMore ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={openPicker}
+                  disabled={isProcessing}
+                  className="w-full"
+                >
+                  <Plus data-icon="inline-start" aria-hidden />
+                  {addMore.label}
+                </Button>
+              ) : null}
+              <div className="flex flex-col gap-2">{primaryAction}</div>
+              {secondaryAction ? <div>{secondaryAction}</div> : null}
+            </footer>
+          </aside>
+        </div>
+      ) : (
+        <EmptyDropzone
+          title={emptyTitle}
+          description={emptyDescription}
+          actionLabel={emptyActionLabel}
+          hint={emptyHint}
+          accept={accept}
+          multiple={multiple}
+          isProcessing={isProcessing}
+          onFilesSelected={onFilesSelected}
+          onOpenPicker={openPicker}
+          errorMessage={errorMessage}
+        />
+      )}
+    </div>
+  );
+}
+
+interface EmptyDropzoneProps {
+  title: string;
+  description: string;
+  actionLabel: string;
+  hint?: string;
+  accept: string;
+  multiple: boolean;
+  isProcessing?: boolean;
+  onFilesSelected: (files: File[]) => void;
+  onOpenPicker: () => void;
+  errorMessage?: string | null;
+}
+
+function EmptyDropzone({
+  title,
+  description,
+  actionLabel,
+  hint,
+  accept,
+  multiple,
+  isProcessing,
+  onFilesSelected,
+  onOpenPicker,
+  errorMessage,
+}: EmptyDropzoneProps) {
+  const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    function preventDefault(event: Event) {
+      event.preventDefault();
+    }
+    window.addEventListener("dragover", preventDefault);
+    window.addEventListener("drop", preventDefault);
+    return () => {
+      window.removeEventListener("dragover", preventDefault);
+      window.removeEventListener("drop", preventDefault);
+    };
+  }, []);
+
+  function filterAcceptedFiles(files: File[]): File[] {
+    if (!accept) {
+      return files;
+    }
+    const tokens = accept
+      .split(",")
+      .map((token) => token.trim().toLowerCase())
+      .filter(Boolean);
+
+    return files.filter((file) => {
+      const name = file.name.toLowerCase();
+      const type = file.type.toLowerCase();
+      return tokens.some((token) => {
+        if (token.startsWith(".")) {
+          return name.endsWith(token);
+        }
+        if (token.endsWith("/*")) {
+          return type.startsWith(token.slice(0, -1));
+        }
+        return type === token;
+      });
+    });
+  }
+
+  function handleDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setIsDragging(false);
+    const files = Array.from(event.dataTransfer?.files ?? []);
+    const accepted = multiple
+      ? filterAcceptedFiles(files)
+      : filterAcceptedFiles(files).slice(0, 1);
+    if (accepted.length > 0) {
+      onFilesSelected(accepted);
+    }
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 items-center justify-center">
+      <div
+        className={cn(
+          "relative flex w-full max-w-4xl flex-col items-center gap-4 overflow-hidden rounded-2xl border-2 border-dashed p-10 text-center shadow-[0_18px_40px_-26px_rgba(0,0,0,0.55)] transition-colors",
+          isDragging
+            ? "border-brand bg-brand/5"
+            : "border-border bg-card/80",
+        )}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={(event) => {
+          if (event.currentTarget.contains(event.relatedTarget as Node)) {
+            return;
+          }
+          setIsDragging(false);
+        }}
+        onDrop={handleDrop}
+      >
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,oklch(0.27_0.02_250/0.28),transparent_55%)]" />
+        <div className="relative z-10 flex size-14 items-center justify-center rounded-full border border-brand/25 bg-brand/10 text-brand">
+          <Upload className="size-7" aria-hidden />
+        </div>
+        <div className="relative z-10 flex max-w-2xl flex-col gap-1.5">
+          <h2 className="text-3xl font-bold tracking-tight">{title}</h2>
+          <p className="text-base leading-relaxed text-muted-foreground">
+            {description}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="brand"
+          size="lg"
+          onClick={onOpenPicker}
+          disabled={isProcessing}
+          className="relative z-10"
+        >
+          <Upload data-icon="inline-start" aria-hidden />
+          {actionLabel}
+        </Button>
+        {hint ? (
+          <p className="relative z-10 text-sm text-muted-foreground">
+            {hint}
+          </p>
+        ) : null}
+        {errorMessage ? (
+          <Alert variant="destructive" className="relative z-10 w-full max-w-2xl text-left">
+            <AlertTitle>No se pudo continuar</AlertTitle>
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        ) : null}
+      </div>
+    </div>
+  );
+}
