@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
@@ -6,6 +6,40 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const defaultBasePath = "/";
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "connect-src 'none'",
+  "font-src 'self' data:",
+  "form-action 'none'",
+  "frame-src 'none'",
+  "img-src 'self' data: blob:",
+  "manifest-src 'self'",
+  "media-src 'none'",
+  "object-src 'none'",
+  "script-src 'self' 'wasm-unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "worker-src 'self' blob:",
+].join("; ");
+
+function createBuildCspMetaPlugin(): Plugin {
+  return {
+    name: "ihatepdf-build-csp-meta",
+    apply: "build",
+    transformIndexHtml() {
+      return [
+        {
+          tag: "meta",
+          attrs: {
+            "http-equiv": "Content-Security-Policy",
+            content: contentSecurityPolicy,
+          },
+          injectTo: "head-prepend",
+        },
+      ];
+    },
+  };
+}
 
 function normalizeBasePath(basePath: string | undefined): string {
   if (!basePath) {
@@ -22,7 +56,7 @@ function normalizeBasePath(basePath: string | undefined): string {
 
 export default defineConfig({
   base: normalizeBasePath(process.env.VITE_BASE_PATH),
-  plugins: [react(), tailwindcss()],
+  plugins: [createBuildCspMetaPlugin(), react(), tailwindcss()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
