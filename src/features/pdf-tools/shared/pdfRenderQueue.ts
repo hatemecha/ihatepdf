@@ -4,7 +4,7 @@ type QueueTask<T> = {
   reject: (error: unknown) => void;
 };
 
-export function createRenderQueue(maxConcurrent = 2) {
+function createRenderQueue(maxConcurrent = 2) {
   let activeCount = 0;
   const pending: QueueTask<unknown>[] = [];
 
