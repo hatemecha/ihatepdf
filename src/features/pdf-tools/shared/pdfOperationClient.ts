@@ -13,26 +13,14 @@ export function createPdfOperationWorker(): Worker {
 function getPdfOperationTransferList(
   request: PdfOperationRequest,
 ): Transferable[] {
-  switch (request.kind) {
-    case "inspect-pdf":
-    case "compress-pdf":
-    case "watermark-pdf":
-    case "number-pages":
-    case "protect-pdf":
-    case "unlock-pdf":
-    case "crop-pdf":
-    case "split-pdf":
-    case "extract-pages":
-    case "delete-pages":
-    case "reorder-pages":
-    case "rotate-pages":
-      return [request.file.buffer];
-    case "merge-pdfs":
-    case "images-to-pdf":
-      return request.files.map((file) => file.buffer);
-    case "images-to-pdf-layout":
-      return request.images.map((image) => image.buffer);
+  if ("file" in request) {
+    return [request.file.buffer];
+  } else if ("files" in request) {
+    return request.files.map((file) => file.buffer);
+  } else if ("images" in request) {
+    return request.images.map((image) => image.buffer);
   }
+  return [];
 }
 
 export function runPdfOperation(

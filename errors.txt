@@ -1,0 +1,20 @@
+src/features/pdf-tools/document/SinglePdfOperationTool.tsx(426,11): error TS2561: Object literal may only specify known properties, but 'file' does not exist in type '{ kind: "rotate-pages"; files: PdfInputFile[]; pages: number[]; angle: 180 | 90 | 270; }'. Did you mean to write 'files'?
+src/features/pdf-tools/extract/ExtractImagesTool.tsx(57,33): error TS2551: Property 'paintJpegXObject' does not exist on type 'typeof OPS'. Did you mean 'paintXObject'?
+src/features/pdf-tools/extract/ExtractImagesTool.tsx(61,63): error TS6133: 'reject' is declared but its value is never read.
+src/features/pdf-tools/extract/ExtractImagesTool.tsx(115,30): error TS2322: Type 'Uint8Array<ArrayBufferLike>' is not assignable to type 'BlobPart'.
+  Type 'Uint8Array<ArrayBufferLike>' is not assignable to type 'ArrayBufferView<ArrayBuffer>'.
+    Types of property 'buffer' are incompatible.
+      Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+        Type 'SharedArrayBuffer' is not assignable to type 'ArrayBuffer'.
+          Types of property '[Symbol.toStringTag]' are incompatible.
+            Type '"SharedArrayBuffer"' is not assignable to type '"ArrayBuffer"'.
+src/features/pdf-tools/metadata/MetadataTool.tsx(2,10): error TS6133: 'Info' is declared but its value is never read.
+src/features/pdf-tools/ocr/OcrTool.tsx(1,20): error TS6133: 'useRef' is declared but its value is never read.
+src/features/pdf-tools/ocr/OcrTool.tsx(1,28): error TS6133: 'useEffect' is declared but its value is never read.
+src/features/pdf-tools/ocr/OcrTool.tsx(2,29): error TS6133: 'FileText' is declared but its value is never read.
+src/features/pdf-tools/scan/ScanToPdfTool.tsx(2,41): error TS6133: 'Plus' is declared but its value is never read.
+src/features/pdf-tools/shared/pdfOperationClient.ts(15,4): error TS2366: Function lacks ending return statement and return type does not include 'undefined'.
+src/features/pdf-tools/shared/pdfOperationClient.ts(29,23): error TS2339: Property 'file' does not exist on type '{ kind: "inspect-pdf"; file: PdfInputFile; } | { kind: "compress-pdf"; files: PdfInputFile[]; } | { kind: "watermark-pdf"; files: PdfInputFile[]; options: WatermarkOptions; } | ... 8 more ... | { ...; }'.
+  Property 'file' does not exist on type '{ kind: "compress-pdf"; files: PdfInputFile[]; }'.
+src/features/pdf-tools/sign/SignPdfTool.tsx(1,20): error TS6133: 'useMemo' is declared but its value is never read.
+src/features/pdf-tools/sign/SignPdfTool.tsx(1,29): error TS6133: 'useCallback' is declared but its value is never read.

@@ -14,6 +14,7 @@ import {
   Lock,
   Stamp,
   Unlock,
+  Eraser,
   type LucideIcon,
 } from "lucide-react";
 
@@ -55,7 +56,8 @@ export type AdvancedPdfOperation =
   | "number-pages"
   | "protect-pdf"
   | "unlock-pdf"
-  | "crop-pdf";
+  | "crop-pdf"
+  | "remove-metadata";
 
 interface AdvancedPdfOperationConfig {
   operation: AdvancedPdfOperation;
@@ -70,7 +72,7 @@ interface AdvancedPdfOperationConfig {
 }
 
 interface AdvancedPdfRuntimeState {
-  selectedFile: File | null;
+  selectedFiles: File[];
   pageCount: number;
   isProcessing: boolean;
   errorMessage: string | null;
@@ -82,11 +84,11 @@ type AdvancedPdfRuntimeAction =
   | { type: "endWork" }
   | { type: "setError"; message: string | null }
   | { type: "setDownloadResult"; result: DownloadResult | null }
-  | { type: "setFile"; file: File; pageCount: number }
-  | { type: "clearFile" };
+  | { type: "setFiles"; files: File[]; pageCount: number }
+  | { type: "clearFiles" };
 
 const DEFAULT_RUNTIME_STATE: AdvancedPdfRuntimeState = {
-  selectedFile: null,
+  selectedFiles: [],
   pageCount: 0,
   isProcessing: false,
   errorMessage: null,
@@ -111,16 +113,16 @@ function runtimeReducer(
       return { ...state, errorMessage: action.message };
     case "setDownloadResult":
       return { ...state, downloadResult: action.result };
-    case "setFile":
+    case "setFiles":
       return {
         ...state,
-        selectedFile: action.file,
+        selectedFiles: action.files,
         pageCount: action.pageCount,
       };
-    case "clearFile":
+    case "clearFiles":
       return {
         ...state,
-        selectedFile: null,
+        selectedFiles: [],
         pageCount: 0,
         errorMessage: null,
         downloadResult: null,
@@ -296,6 +298,17 @@ const OPERATION_CONFIGS: Record<
     processingLabel: "Recortando PDF",
     actionIcon: Crop,
   },
+  "remove-metadata": {
+    operation: "remove-metadata",
+    toolTitle: "Eliminar metadatos",
+    toolDescription: "Limpia la información oculta del archivo.",
+    emptyTitle: "Selecciona un PDF",
+    emptyDescription:
+      "Elimina permanentemente el autor, creador y otros datos de rastreo del PDF.",
+    actionLabel: "Eliminar metadatos",
+    processingLabel: "Eliminando metadatos",
+    actionIcon: Eraser,
+  },
 };
 
 const POSITION_OPTIONS: Array<{
@@ -461,6 +474,7 @@ function renderAdvancedPdfPreviewOverlay(
     case "compress-pdf":
     case "protect-pdf":
     case "unlock-pdf":
+    case "remove-metadata":
       return null;
   }
 }
@@ -488,17 +502,17 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
     DEFAULT_ADVANCED_SETTINGS,
   );
   const {
-    selectedFile,
+    selectedFiles,
     pageCount,
     isProcessing,
     errorMessage,
     downloadResult,
   } = runtime;
 
-  const hasContent = Boolean(selectedFile);
+  const hasContent = selectedFiles.length > 0;
 
   const canProcess = useMemo(() => {
-    if (!selectedFile || isProcessing) {
+    if (selectedFiles.length === 0 || isProcessing) {
       return false;
     }
 
@@ -519,12 +533,13 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
         );
       case "compress-pdf":
       case "number-pages":
+      case "remove-metadata":
         return true;
     }
   }, [
     config.operation,
     isProcessing,
-    selectedFile,
+    selectedFiles.length,
     settings.cropMarginsMm.bottom,
     settings.cropMarginsMm.left,
     settings.cropMarginsMm.right,
@@ -560,12 +575,12 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
   }
 
   async function handleFilesSelected(files: File[]) {
-    const file = files[0];
-    if (!file) {
+    if (files.length === 0) {
       return;
     }
 
-    const validation = validateSinglePdfFile(file);
+    const firstFile = files[0];
+    const validation = validateSinglePdfFile(firstFile);
     if (!validation.isValid) {
       dispatchRuntime({
         type: "setError",
@@ -579,16 +594,16 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
 
     try {
       if (config.skipPreviewInspection) {
-        dispatchRuntime({ type: "setFile", file, pageCount: 0 });
+        dispatchRuntime({ type: "setFiles", files, pageCount: 0 });
         return;
       }
       dispatchRuntime({
-        type: "setFile",
-        file,
-        pageCount: await getPdfPageCount(file),
+        type: "setFiles",
+        files,
+        pageCount: await getPdfPageCount(firstFile),
       });
     } catch (error) {
-      dispatchRuntime({ type: "clearFile" });
+      dispatchRuntime({ type: "clearFiles" });
       dispatchRuntime({
         type: "setError",
         message:
@@ -602,7 +617,7 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
   }
 
   function handleClear() {
-    dispatchRuntime({ type: "clearFile" });
+    dispatchRuntime({ type: "clearFiles" });
     clearDownloadResult();
   }
 
@@ -613,14 +628,14 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
     dispatchRuntime({ type: "setError", message: "Operación cancelada." });
   }
 
-  function buildOperationRequest(file: PdfInputFile): PdfOperationRequest {
+  function buildOperationRequest(files: PdfInputFile[]): PdfOperationRequest {
     switch (config.operation) {
       case "compress-pdf":
-        return { kind: "compress-pdf", file };
+        return { kind: "compress-pdf", files };
       case "watermark-pdf":
         return {
           kind: "watermark-pdf",
-          file,
+          files,
           options: {
             text: settings.watermark.text,
             opacity: settings.watermark.opacity / 100,
@@ -631,7 +646,7 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
       case "number-pages":
         return {
           kind: "number-pages",
-          file,
+          files,
           options: {
             startAt: settings.pageNumbers.startAt,
             fontSize: settings.pageNumbers.fontSize,
@@ -643,7 +658,7 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
       case "protect-pdf":
         return {
           kind: "protect-pdf",
-          file,
+          files,
           options: {
             userPassword: settings.protect.userPassword,
             ownerPassword: settings.protect.ownerPassword || undefined,
@@ -655,20 +670,25 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
       case "unlock-pdf":
         return {
           kind: "unlock-pdf",
-          file,
+          files,
           password: settings.unlockPassword,
         };
       case "crop-pdf":
         return {
           kind: "crop-pdf",
-          file,
+          files,
           margins: createCropMargins(settings.cropMarginsMm),
+        };
+      case "remove-metadata":
+        return {
+          kind: "remove-metadata",
+          files,
         };
     }
   }
 
   async function handleProcess() {
-    if (!selectedFile) {
+    if (selectedFiles.length === 0) {
       return;
     }
 
@@ -676,15 +696,17 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
     clearDownloadResult();
 
     try {
-      const buffer = await selectedFile.arrayBuffer();
+      const inputFiles = await Promise.all(
+        selectedFiles.map(async (f) => ({
+          name: f.name,
+          buffer: await f.arrayBuffer(),
+        }))
+      );
       const worker = createPdfOperationWorker();
       workerRef.current = worker;
       const result = await runPdfOperation(
         worker,
-        buildOperationRequest({
-          name: selectedFile.name,
-          buffer,
-        }),
+        buildOperationRequest(inputFiles),
       );
 
       if (result.kind !== "file") {
@@ -727,9 +749,9 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
   }, []);
 
   const preview =
-    selectedFile && pageCount > 0 && !config.skipPreviewInspection ? (
+    selectedFiles.length > 0 && pageCount > 0 && !config.skipPreviewInspection ? (
       <PdfFocusedPreview
-        file={selectedFile}
+        file={selectedFiles[0]}
         pageLabel={pageCount > 1 ? `Página 1 de ${pageCount}` : "Página 1"}
         overlay={(metrics) =>
           renderAdvancedPdfPreviewOverlay(config.operation, settings, metrics)
@@ -738,7 +760,11 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
     ) : (
       <FileOnlyPreview
         title={config.toolTitle}
-        description={selectedFile?.name ?? "PDF seleccionado"}
+        description={
+          selectedFiles.length > 1
+            ? `${selectedFiles.length} PDFs seleccionados`
+            : selectedFiles[0]?.name ?? "PDF seleccionado"
+        }
         Icon={config.actionIcon}
       />
     );
@@ -746,7 +772,7 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
   const sidebar = (
     <AdvancedPdfSidebar
       config={config}
-      selectedFile={selectedFile}
+      selectedFile={selectedFiles[0] ?? null}
       pageCount={pageCount}
       settings={settings}
       onChangeFile={handleClear}
@@ -801,6 +827,7 @@ export function AdvancedPdfTool({ config }: AdvancedPdfToolProps) {
       primaryAction={controller.primaryAction}
       errorMessage={controller.errorMessage}
       resultBanner={controller.resultBanner}
+      multiple={true}
     />
   );
 }

@@ -423,7 +423,7 @@ function useSinglePdfOperationTool({ config }: SinglePdfOperationToolProps) {
       case "rotate-pages":
         return {
           kind: "rotate-pages",
-          file,
+          files: [file],
           pages: sortedSelection,
           angle,
         };

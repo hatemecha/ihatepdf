@@ -21,6 +21,12 @@ import {
 import type { ImageToPdfLayoutImageImport } from "@/features/pdf-tools/images/layout/ImageToPdfLayoutEditor";
 import { PdfToImagesTool } from "@/features/pdf-tools/images/PdfToImagesTool";
 import { MergePdfTool } from "@/features/pdf-tools/merge/MergePdfTool";
+import { MetadataTool } from "@/features/pdf-tools/metadata/MetadataTool";
+import { ExtractTextTool } from "@/features/pdf-tools/extract/ExtractTextTool";
+import { ExtractImagesTool } from "@/features/pdf-tools/extract/ExtractImagesTool";
+import { ScanToPdfTool } from "@/features/pdf-tools/scan/ScanToPdfTool";
+import { OcrTool } from "@/features/pdf-tools/ocr/OcrTool";
+import { SignPdfTool } from "@/features/pdf-tools/sign/SignPdfTool";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { getToolBySlug, type Tool } from "@/tools/toolCatalog";
 
@@ -89,7 +95,8 @@ export function ToolPage() {
         tool.implementation === "number-pages" ||
         tool.implementation === "protect-pdf" ||
         tool.implementation === "unlock-pdf" ||
-        tool.implementation === "crop-pdf" ? (
+        tool.implementation === "crop-pdf" ||
+        tool.implementation === "remove-metadata" ? (
           <AdvancedPdfTool
             config={getAdvancedPdfOperationConfig(tool.implementation)}
           />
@@ -113,6 +120,12 @@ export function ToolPage() {
           />
         ) : null}
         {tool.implementation === "pdf-to-images" ? <PdfToImagesTool /> : null}
+        {tool.implementation === "view-metadata" ? <MetadataTool /> : null}
+        {tool.implementation === "pdf-to-text" ? <ExtractTextTool /> : null}
+        {tool.implementation === "extract-images" ? <ExtractImagesTool /> : null}
+        {tool.implementation === "scan-to-pdf" ? <ScanToPdfTool /> : null}
+        {tool.implementation === "ocr-pdf" ? <OcrTool /> : null}
+        {tool.implementation === "sign-pdf" ? <SignPdfTool /> : null}
       </div>
     </main>
   );

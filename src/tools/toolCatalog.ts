@@ -2,13 +2,20 @@ import {
   Combine,
   CopyMinus,
   Crop,
+  Eraser,
   FileImage,
   FileArchive,
+  FileText,
   Hash,
   ImagePlus,
+  Images,
+  Info,
   ListOrdered,
   Lock,
+  PenTool,
   RotateCcw,
+  Camera,
+  ScanText,
   Scissors,
   Stamp,
   Trash2,
@@ -34,7 +41,14 @@ type ToolImplementation =
   | "reorder-pages"
   | "rotate-pages"
   | "images-to-pdf"
-  | "pdf-to-images";
+  | "pdf-to-images"
+  | "view-metadata"
+  | "remove-metadata"
+  | "extract-images"
+  | "pdf-to-text"
+  | "scan-to-pdf"
+  | "ocr-pdf"
+  | "sign-pdf";
 
 export interface ToolCategory {
   id: ToolCategoryId;
@@ -230,6 +244,83 @@ const TOOLS: Tool[] = [
     implementation: "pdf-to-images",
     icon: FileImage,
   },
+  {
+    slug: "view-metadata",
+    name: "Ver metadatos",
+    description: "Visualiza información oculta del PDF.",
+    longDescription:
+      "Lee el título, autor, creador y fechas de creación o modificación del documento.",
+    category: "edit",
+    status: "available",
+    implementation: "view-metadata",
+    icon: Info,
+  },
+  {
+    slug: "remove-metadata",
+    name: "Eliminar metadatos",
+    description: "Limpia la información oculta del archivo.",
+    longDescription:
+      "Elimina permanentemente el autor, creador y otros datos de rastreo del PDF.",
+    category: "edit",
+    status: "available",
+    implementation: "remove-metadata",
+    icon: Eraser,
+  },
+  {
+    slug: "extract-images",
+    name: "Extraer imágenes",
+    description: "Saca todas las imágenes de un PDF.",
+    longDescription:
+      "Detecta y extrae todas las fotos e imágenes incrustadas en el documento y las empaqueta en un ZIP.",
+    category: "convert",
+    status: "available",
+    implementation: "extract-images",
+    icon: Images,
+  },
+  {
+    slug: "pdf-to-text",
+    name: "PDF a texto",
+    description: "Extrae el texto de un PDF.",
+    longDescription:
+      "Lee y extrae todo el contenido de texto seleccionable del documento en un archivo de texto plano.",
+    category: "convert",
+    status: "available",
+    implementation: "pdf-to-text",
+    icon: FileText,
+  },
+  {
+    slug: "scan-to-pdf",
+    name: "Escanear a PDF",
+    description: "Crea un PDF usando tu cámara.",
+    longDescription:
+      "Toma fotos de tus documentos físicos con la cámara de tu dispositivo y conviértelos directamente en PDF.",
+    category: "convert",
+    status: "available",
+    implementation: "scan-to-pdf",
+    icon: Camera,
+  },
+  {
+    slug: "ocr-pdf",
+    name: "OCR PDF",
+    description: "Extrae texto de PDFs escaneados.",
+    longDescription:
+      "Utiliza reconocimiento óptico de caracteres para extraer texto de imágenes o PDFs escaneados (localmente).",
+    category: "convert",
+    status: "available",
+    implementation: "ocr-pdf",
+    icon: ScanText,
+  },
+  {
+    slug: "sign-pdf",
+    name: "Firmar PDF",
+    description: "Añade tu firma visual al documento.",
+    longDescription:
+      "Dibuja tu firma en la pantalla y estámpala en cualquier página y posición del PDF.",
+    category: "edit",
+    status: "available",
+    implementation: "sign-pdf",
+    icon: PenTool,
+  },
 ];
 
 const TOOL_SEARCH_SYNONYMS: Record<string, string[]> = {
@@ -247,6 +338,13 @@ const TOOL_SEARCH_SYNONYMS: Record<string, string[]> = {
   crop: ["recortar", "margen", "margenes"],
   "images-to-pdf": ["imagen", "jpg", "png", "foto"],
   "pdf-to-images": ["exportar", "png", "jpg", "webp"],
+  "view-metadata": ["ver", "metadatos", "propiedades", "autor"],
+  "remove-metadata": ["eliminar", "borrar", "limpiar", "metadatos", "propiedades"],
+  "extract-images": ["extraer", "sacar", "imagenes", "fotos"],
+  "pdf-to-text": ["convertir", "texto", "txt", "extraer texto"],
+  "scan-to-pdf": ["escanear", "camara", "foto", "digitalizar"],
+  "ocr-pdf": ["ocr", "reconocimiento", "texto", "escaner", "escaneado"],
+  "sign-pdf": ["firmar", "firma", "rubrica", "dibujar"],
 };
 
 function normalizeSearchText(value: string): string {

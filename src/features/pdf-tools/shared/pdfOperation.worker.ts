@@ -107,49 +107,68 @@ async function inspectPdf(file: PdfInputFile): Promise<PdfOperationResult> {
   };
 }
 
-async function compressPdf(file: PdfInputFile): Promise<PdfOperationResult> {
-  const outputDocument = await loadPdf(file);
-  const bytes = await outputDocument.save({
-    useObjectStreams: true,
-    objectsPerTick: 50,
-  });
+async function compressPdf(files: PdfInputFile[]): Promise<PdfOperationResult> {
+  if (files.length === 1) {
+    const outputDocument = await loadPdf(files[0]);
+    const bytes = await outputDocument.save({
+      useObjectStreams: true,
+      objectsPerTick: 50,
+    });
+    return createOutputFile("ihatepdf-compressed.pdf", PDF_MIME_TYPE, bytes);
+  }
 
-  return createOutputFile("ihatepdf-compressed.pdf", PDF_MIME_TYPE, bytes);
+  const zip = new JSZip();
+  await Promise.all(
+    files.map(async (file, index) => {
+      const outputDocument = await loadPdf(file);
+      const bytes = await outputDocument.save({
+        useObjectStreams: true,
+        objectsPerTick: 50,
+      });
+      zip.file(`compressed-${index + 1}-${file.name}`, bytes);
+    })
+  );
+  return createOutputFile("ihatepdf-compressed.zip", ZIP_MIME_TYPE, await zip.generateAsync({ type: "uint8array" }));
 }
 
 async function watermarkPdf(
-  file: PdfInputFile,
+  files: PdfInputFile[],
   options: WatermarkOptions,
 ): Promise<PdfOperationResult> {
-  const outputDocument = await loadPdf(file);
-  const font = await outputDocument.embedFont(StandardFonts.HelveticaBold);
   const text = options.text.trim();
+  if (!text) throw new Error("Escribe el texto de la marca de agua.");
 
-  if (!text) {
-    throw new Error("Escribe el texto de la marca de agua.");
+  const processFile = async (file: PdfInputFile) => {
+    const outputDocument = await loadPdf(file);
+    const font = await outputDocument.embedFont(StandardFonts.HelveticaBold);
+    for (const page of outputDocument.getPages()) {
+      const { width, height } = page.getSize();
+      const fontSize = clamp(options.fontSize, 12, 120);
+      const textWidth = font.widthOfTextAtSize(text, fontSize);
+      page.drawText(text, {
+        x: (width - textWidth) / 2,
+        y: (height - fontSize) / 2,
+        size: fontSize,
+        font,
+        color: rgb(0.12, 0.12, 0.12),
+        opacity: clamp(options.opacity, 0.05, 0.8),
+        rotate: degrees(options.rotation),
+      });
+    }
+    return outputDocument.save();
+  };
+
+  if (files.length === 1) {
+    return createOutputFile("ihatepdf-watermarked.pdf", PDF_MIME_TYPE, await processFile(files[0]));
   }
 
-  for (const page of outputDocument.getPages()) {
-    const { width, height } = page.getSize();
-    const fontSize = clamp(options.fontSize, 12, 120);
-    const textWidth = font.widthOfTextAtSize(text, fontSize);
-
-    page.drawText(text, {
-      x: (width - textWidth) / 2,
-      y: (height - fontSize) / 2,
-      size: fontSize,
-      font,
-      color: rgb(0.12, 0.12, 0.12),
-      opacity: clamp(options.opacity, 0.05, 0.8),
-      rotate: degrees(options.rotation),
-    });
-  }
-
-  return createOutputFile(
-    "ihatepdf-watermarked.pdf",
-    PDF_MIME_TYPE,
-    await outputDocument.save(),
+  const zip = new JSZip();
+  await Promise.all(
+    files.map(async (file, index) => {
+      zip.file(`watermarked-${index + 1}-${file.name}`, await processFile(file));
+    })
   );
+  return createOutputFile("ihatepdf-watermarked.zip", ZIP_MIME_TYPE, await zip.generateAsync({ type: "uint8array" }));
 }
 
 function getPageNumberPosition(
@@ -175,78 +194,79 @@ function getPageNumberPosition(
 }
 
 async function numberPages(
-  file: PdfInputFile,
+  files: PdfInputFile[],
   options: PageNumberOptions,
 ): Promise<PdfOperationResult> {
-  const outputDocument = await loadPdf(file);
-  const font = await outputDocument.embedFont(
-    getPageNumberStandardFont(options.font),
-  );
-  const fontSize = clamp(options.fontSize, 8, 48);
-  const startAt = Math.max(1, Math.floor(options.startAt));
+  const processFile = async (file: PdfInputFile) => {
+    const outputDocument = await loadPdf(file);
+    const font = await outputDocument.embedFont(getPageNumberStandardFont(options.font));
+    const fontSize = clamp(options.fontSize, 8, 48);
+    const startAt = Math.max(1, Math.floor(options.startAt));
 
-  outputDocument.getPages().forEach((page, pageIndex) => {
-    const label = String(startAt + pageIndex);
-    const { width, height } = page.getSize();
-    const textWidth = font.widthOfTextAtSize(label, fontSize);
-    const { x, y } = getPageNumberPosition(
-      width,
-      height,
-      textWidth,
-      fontSize,
-      options,
-    );
+    outputDocument.getPages().forEach((page, pageIndex) => {
+      const label = String(startAt + pageIndex);
+      const { width, height } = page.getSize();
+      const textWidth = font.widthOfTextAtSize(label, fontSize);
+      const { x, y } = getPageNumberPosition(width, height, textWidth, fontSize, options);
 
-    page.drawText(label, {
-      x,
-      y,
-      size: fontSize,
-      font,
-      color: rgb(0.12, 0.12, 0.12),
+      page.drawText(label, { x, y, size: fontSize, font, color: rgb(0.12, 0.12, 0.12) });
     });
-  });
+    return outputDocument.save();
+  };
 
-  return createOutputFile(
-    "ihatepdf-numbered.pdf",
-    PDF_MIME_TYPE,
-    await outputDocument.save(),
+  if (files.length === 1) {
+    return createOutputFile("ihatepdf-numbered.pdf", PDF_MIME_TYPE, await processFile(files[0]));
+  }
+
+  const zip = new JSZip();
+  await Promise.all(
+    files.map(async (file, index) => {
+      zip.file(`numbered-${index + 1}-${file.name}`, await processFile(file));
+    })
   );
+  return createOutputFile("ihatepdf-numbered.zip", ZIP_MIME_TYPE, await zip.generateAsync({ type: "uint8array" }));
 }
 
 async function cropPdf(
-  file: PdfInputFile,
+  files: PdfInputFile[],
   margins: CropMargins,
 ): Promise<PdfOperationResult> {
-  const outputDocument = await loadPdf(file);
+  const processFile = async (file: PdfInputFile) => {
+    const outputDocument = await loadPdf(file);
+    for (const page of outputDocument.getPages()) {
+      const { width, height } = page.getSize();
+      const left = Math.max(0, margins.left);
+      const right = Math.max(0, margins.right);
+      const top = Math.max(0, margins.top);
+      const bottom = Math.max(0, margins.bottom);
+      const croppedWidth = width - left - right;
+      const croppedHeight = height - top - bottom;
 
-  for (const page of outputDocument.getPages()) {
-    const { width, height } = page.getSize();
-    const left = Math.max(0, margins.left);
-    const right = Math.max(0, margins.right);
-    const top = Math.max(0, margins.top);
-    const bottom = Math.max(0, margins.bottom);
-    const croppedWidth = width - left - right;
-    const croppedHeight = height - top - bottom;
+      if (croppedWidth < 36 || croppedHeight < 36) {
+        throw new Error("Los márgenes de recorte dejan una página demasiado pequeña.");
+      }
 
-    if (croppedWidth < 36 || croppedHeight < 36) {
-      throw new Error(
-        "Los márgenes de recorte dejan una página demasiado pequeña.",
-      );
+      page.setCropBox(left, bottom, croppedWidth, croppedHeight);
+      page.setTrimBox(left, bottom, croppedWidth, croppedHeight);
     }
+    return outputDocument.save();
+  };
 
-    page.setCropBox(left, bottom, croppedWidth, croppedHeight);
-    page.setTrimBox(left, bottom, croppedWidth, croppedHeight);
+  if (files.length === 1) {
+    return createOutputFile("ihatepdf-cropped.pdf", PDF_MIME_TYPE, await processFile(files[0]));
   }
 
-  return createOutputFile(
-    "ihatepdf-cropped.pdf",
-    PDF_MIME_TYPE,
-    await outputDocument.save(),
+  const zip = new JSZip();
+  await Promise.all(
+    files.map(async (file, index) => {
+      zip.file(`cropped-${index + 1}-${file.name}`, await processFile(file));
+    })
   );
+  return createOutputFile("ihatepdf-cropped.zip", ZIP_MIME_TYPE, await zip.generateAsync({ type: "uint8array" }));
 }
 
 async function protectPdf(
-  file: PdfInputFile,
+  files: PdfInputFile[],
   options: ProtectPdfOptions,
 ): Promise<PdfOperationResult> {
   if (!options.userPassword) {
@@ -254,27 +274,36 @@ async function protectPdf(
   }
 
   const { encryptPDF } = await import("@pdfsmaller/pdf-encrypt");
-  const encryptedBytes = await encryptPDF(
-    new Uint8Array(file.buffer),
-    options.userPassword,
-    {
-      ownerPassword: options.ownerPassword || options.userPassword,
-      algorithm: "AES-256",
-      allowPrinting: options.allowPrinting,
-      allowCopying: options.allowCopying,
-      allowModifying: options.allowModifying,
-    },
-  );
+  
+  const processFile = async (file: PdfInputFile) => {
+    return encryptPDF(
+      new Uint8Array(file.buffer),
+      options.userPassword,
+      {
+        ownerPassword: options.ownerPassword || options.userPassword,
+        algorithm: "AES-256",
+        allowPrinting: options.allowPrinting,
+        allowCopying: options.allowCopying,
+        allowModifying: options.allowModifying,
+      },
+    );
+  };
 
-  return createOutputFile(
-    "ihatepdf-protected.pdf",
-    PDF_MIME_TYPE,
-    encryptedBytes,
+  if (files.length === 1) {
+    return createOutputFile("ihatepdf-protected.pdf", PDF_MIME_TYPE, await processFile(files[0]));
+  }
+
+  const zip = new JSZip();
+  await Promise.all(
+    files.map(async (file, index) => {
+      zip.file(`protected-${index + 1}-${file.name}`, await processFile(file));
+    })
   );
+  return createOutputFile("ihatepdf-protected.zip", ZIP_MIME_TYPE, await zip.generateAsync({ type: "uint8array" }));
 }
 
 async function unlockPdf(
-  file: PdfInputFile,
+  files: PdfInputFile[],
   password: string,
 ): Promise<PdfOperationResult> {
   if (!password) {
@@ -282,16 +311,22 @@ async function unlockPdf(
   }
 
   const { decryptPDF } = await import("@pdfsmaller/pdf-decrypt");
-  const decryptedBytes = await decryptPDF(
-    new Uint8Array(file.buffer),
-    password,
-  );
 
-  return createOutputFile(
-    "ihatepdf-unlocked.pdf",
-    PDF_MIME_TYPE,
-    decryptedBytes,
+  const processFile = async (file: PdfInputFile) => {
+    return decryptPDF(new Uint8Array(file.buffer), password);
+  };
+
+  if (files.length === 1) {
+    return createOutputFile("ihatepdf-unlocked.pdf", PDF_MIME_TYPE, await processFile(files[0]));
+  }
+
+  const zip = new JSZip();
+  await Promise.all(
+    files.map(async (file, index) => {
+      zip.file(`unlocked-${index + 1}-${file.name}`, await processFile(file));
+    })
   );
+  return createOutputFile("ihatepdf-unlocked.zip", ZIP_MIME_TYPE, await zip.generateAsync({ type: "uint8array" }));
 }
 
 async function mergePdfs(files: PdfInputFile[]): Promise<PdfOperationResult> {
@@ -396,27 +431,34 @@ async function reorderPages(
 }
 
 async function rotatePages(
-  file: PdfInputFile,
+  files: PdfInputFile[],
   pages: number[],
   angle: 90 | 180 | 270,
 ): Promise<PdfOperationResult> {
-  const outputDocument = await loadPdf(file);
-  const pagesToRotate = new Set(pages);
+  const processFile = async (file: PdfInputFile) => {
+    const outputDocument = await loadPdf(file);
+    const pagesToRotate = new Set(pages);
 
-  outputDocument.getPages().forEach((page, pageIndex) => {
-    if (!pagesToRotate.has(pageIndex)) {
-      return;
-    }
+    outputDocument.getPages().forEach((page, pageIndex) => {
+      if (!pagesToRotate.has(pageIndex)) return;
+      const currentAngle = page.getRotation().angle;
+      page.setRotation(degrees((currentAngle + angle) % 360));
+    });
 
-    const currentAngle = page.getRotation().angle;
-    page.setRotation(degrees((currentAngle + angle) % 360));
-  });
+    return outputDocument.save();
+  };
 
-  return createOutputFile(
-    "ihatepdf-rotated.pdf",
-    PDF_MIME_TYPE,
-    await outputDocument.save(),
+  if (files.length === 1) {
+    return createOutputFile("ihatepdf-rotated.pdf", PDF_MIME_TYPE, await processFile(files[0]));
+  }
+
+  const zip = new JSZip();
+  await Promise.all(
+    files.map(async (file, index) => {
+      zip.file(`rotated-${index + 1}-${file.name}`, await processFile(file));
+    })
   );
+  return createOutputFile("ihatepdf-rotated.zip", ZIP_MIME_TYPE, await zip.generateAsync({ type: "uint8array" }));
 }
 
 async function embedImage(outputDocument: PDFDocument, file: ImageInputFile) {
@@ -596,6 +638,72 @@ async function imagesToPdfLayout(
   );
 }
 
+async function viewMetadata(file: PdfInputFile): Promise<PdfOperationResult> {
+  const document = await loadPdf(file);
+  return {
+    kind: "metadata",
+    metadata: {
+      title: document.getTitle() ?? "",
+      author: document.getAuthor() ?? "",
+      subject: document.getSubject() ?? "",
+      keywords: document.getKeywords() ?? "",
+      creator: document.getCreator() ?? "",
+      producer: document.getProducer() ?? "",
+      creationDate: document.getCreationDate()?.toISOString() ?? "",
+      modificationDate: document.getModificationDate()?.toISOString() ?? "",
+    },
+  };
+}
+
+async function removeMetadata(files: PdfInputFile[]): Promise<PdfOperationResult> {
+  const processFile = async (file: PdfInputFile) => {
+    const document = await loadPdf(file);
+    document.setTitle("");
+    document.setAuthor("");
+    document.setSubject("");
+    document.setKeywords([]);
+    document.setCreator("");
+    document.setProducer("");
+    return document.save();
+  };
+
+  if (files.length === 1) {
+    return createOutputFile("ihatepdf-no-metadata.pdf", PDF_MIME_TYPE, await processFile(files[0]));
+  }
+
+  const zip = new JSZip();
+  await Promise.all(
+    files.map(async (file, index) => {
+      zip.file(`no-metadata-${index + 1}-${file.name}`, await processFile(file));
+    })
+  );
+  return createOutputFile("ihatepdf-no-metadata.zip", ZIP_MIME_TYPE, await zip.generateAsync({ type: "uint8array" }));
+}
+
+async function signPdf(
+  file: PdfInputFile,
+  options: { page: number; x: number; y: number; width: number; height: number; signatureImage: ArrayBuffer },
+): Promise<PdfOperationResult> {
+  const document = await loadPdf(file);
+  const pages = document.getPages();
+  const targetPage = pages[options.page];
+  
+  if (!targetPage) {
+    throw new Error("Página no encontrada.");
+  }
+
+  const signatureImage = await document.embedPng(options.signatureImage);
+  
+  targetPage.drawImage(signatureImage, {
+    x: options.x,
+    y: options.y,
+    width: options.width,
+    height: options.height,
+  });
+
+  return createOutputFile("ihatepdf-signed.pdf", PDF_MIME_TYPE, await document.save());
+}
+
 async function runOperation(
   request: PdfOperationRequest,
 ): Promise<PdfOperationResult> {
@@ -603,17 +711,17 @@ async function runOperation(
     case "inspect-pdf":
       return inspectPdf(request.file);
     case "compress-pdf":
-      return compressPdf(request.file);
+      return compressPdf(request.files);
     case "watermark-pdf":
-      return watermarkPdf(request.file, request.options);
+      return watermarkPdf(request.files, request.options);
     case "number-pages":
-      return numberPages(request.file, request.options);
+      return numberPages(request.files, request.options);
     case "protect-pdf":
-      return protectPdf(request.file, request.options);
+      return protectPdf(request.files, request.options);
     case "unlock-pdf":
-      return unlockPdf(request.file, request.password);
+      return unlockPdf(request.files, request.password);
     case "crop-pdf":
-      return cropPdf(request.file, request.margins);
+      return cropPdf(request.files, request.margins);
     case "merge-pdfs":
       return mergePdfs(request.files);
     case "split-pdf":
@@ -625,11 +733,21 @@ async function runOperation(
     case "reorder-pages":
       return reorderPages(request.file, request.pages);
     case "rotate-pages":
-      return rotatePages(request.file, request.pages, request.angle);
+      return rotatePages(request.files, request.pages, request.angle);
     case "images-to-pdf":
       return imagesToPdf(request.files, request.options);
     case "images-to-pdf-layout":
       return imagesToPdfLayout(request.images, request.pages);
+    case "view-metadata":
+      return viewMetadata(request.file);
+    case "remove-metadata":
+      return removeMetadata(request.files);
+    case "sign-pdf":
+      return signPdf(request.file, request.options);
+    case "extract-images":
+    case "pdf-to-text":
+    case "ocr-pdf":
+      throw new Error("Operation should be handled on the main thread.");
   }
 }
 

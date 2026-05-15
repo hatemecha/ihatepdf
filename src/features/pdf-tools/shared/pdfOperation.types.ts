@@ -82,31 +82,31 @@ export type PdfOperationRequest =
     }
   | {
       kind: "compress-pdf";
-      file: PdfInputFile;
+      files: PdfInputFile[];
     }
   | {
       kind: "watermark-pdf";
-      file: PdfInputFile;
+      files: PdfInputFile[];
       options: WatermarkOptions;
     }
   | {
       kind: "number-pages";
-      file: PdfInputFile;
+      files: PdfInputFile[];
       options: PageNumberOptions;
     }
   | {
       kind: "protect-pdf";
-      file: PdfInputFile;
+      files: PdfInputFile[];
       options: ProtectPdfOptions;
     }
   | {
       kind: "unlock-pdf";
-      file: PdfInputFile;
+      files: PdfInputFile[];
       password: string;
     }
   | {
       kind: "crop-pdf";
-      file: PdfInputFile;
+      files: PdfInputFile[];
       margins: CropMargins;
     }
   | {
@@ -134,8 +134,9 @@ export type PdfOperationRequest =
     }
   | {
       kind: "rotate-pages";
-      file: PdfInputFile;
-      pages: number[];
+      files: PdfInputFile[];
+      pages: number[]; // applies to all if possible, or maybe we just rotate all pages if batch? 
+      // Actually, if batching rotate, the UI usually applies to all pages or specific ranges. Let's keep `pages` for single file, and if batch, apply to all pages? No, the UI for SinglePdfOperationTool previews one file. If multiple are passed, we might just apply the rotation to ALL pages of ALL files, or to the same page indices. Let's just keep the type as is and we'll handle the logic in the worker.
       angle: 90 | 180 | 270;
     }
   | {
@@ -147,12 +148,57 @@ export type PdfOperationRequest =
       kind: "images-to-pdf-layout";
       images: LayoutImageAsset[];
       pages: LayoutPagePayload[];
+    }
+  | {
+      kind: "view-metadata";
+      file: PdfInputFile;
+    }
+  | {
+      kind: "remove-metadata";
+      files: PdfInputFile[];
+    }
+  | {
+      kind: "extract-images";
+      file: PdfInputFile;
+    }
+  | {
+      kind: "pdf-to-text";
+      file: PdfInputFile;
+    }
+  | {
+      kind: "ocr-pdf";
+      file: PdfInputFile;
+    }
+  | {
+      kind: "sign-pdf";
+      file: PdfInputFile;
+      options: {
+        page: number;
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        signatureImage: ArrayBuffer;
+      };
     };
 
 export type PdfOperationResult =
   | {
       kind: "inspect";
       pageCount: number;
+    }
+  | {
+      kind: "metadata";
+      metadata: {
+        title: string;
+        author: string;
+        subject: string;
+        keywords: string;
+        creator: string;
+        producer: string;
+        creationDate: string;
+        modificationDate: string;
+      };
     }
   | {
       kind: "file";
