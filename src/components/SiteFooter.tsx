@@ -24,6 +24,15 @@ export function SiteFooter() {
             >
               Herramientas
             </Link>
+            <span aria-hidden className="text-brand">
+              ·
+            </span>
+            <Link
+              to="/#preguntas-frecuentes"
+              className="font-medium text-foreground underline-offset-4 transition-colors hover:text-brand hover:underline"
+            >
+              FAQ
+            </Link>
             <a
               href={REPO_URL}
               target="_blank"

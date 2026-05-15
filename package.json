@@ -23,7 +23,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:pages": "tsc -b && vite build --base=/iHatePDF/ && node scripts/create-spa-fallback.mjs",
+    "build:pages": "tsc -b && vite build --base=/iHatePDF/ && node scripts/create-spa-fallback.mjs && node scripts/generate-seo-assets.mjs",
     "preview": "vite preview",
     "preview:pages": "vite preview --base=/iHatePDF/",
     "typecheck": "tsc -b --noEmit",

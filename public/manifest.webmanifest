@@ -1,0 +1,22 @@
+{
+  "name": "iHatePDF — Herramientas PDF en el navegador",
+  "short_name": "iHatePDF",
+  "description": "Une, divide, comprime y convierte PDFs gratis sin subir archivos a servidores.",
+  "lang": "es",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "brand/logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "brand/logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

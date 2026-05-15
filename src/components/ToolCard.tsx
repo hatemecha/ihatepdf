@@ -23,7 +23,8 @@ export function ToolCard({ tool }: ToolCardProps) {
     <Link
       to={`/herramientas/${tool.slug}`}
       className="group block h-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      aria-label={`Abrir ${tool.name}`}
+      title={`${tool.name} — ${tool.description}`}
+      aria-label={`${tool.name}: ${tool.description}`}
     >
       <Card className="h-full min-h-52 overflow-hidden transition-colors duration-200 group-hover:border-brand group-focus-visible:border-brand">
         <CardHeader className="pb-0">

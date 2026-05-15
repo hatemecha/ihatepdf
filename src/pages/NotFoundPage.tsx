@@ -1,8 +1,16 @@
 import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { usePageSeo } from "@/hooks/usePageSeo";
 
 export function NotFoundPage() {
+  usePageSeo({
+    title: "Página no encontrada",
+    description: "La ruta solicitada no existe en iHatePDF.",
+    path: "/404",
+    noIndex: true,
+  });
+
   return (
     <main className="container-page flex min-h-[60vh] flex-col items-center justify-center gap-6 py-20 text-center">
       <div className="flex flex-col items-center gap-2">

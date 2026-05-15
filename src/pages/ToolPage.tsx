@@ -1,4 +1,10 @@
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
@@ -34,6 +40,12 @@ import { PdfToPowerpointTool } from "@/features/pdf-tools/convert/PdfToPowerpoin
 import { OfficeToPdfTool } from "@/features/pdf-tools/convert/OfficeToPdfTool";
 import { RepairPdfTool } from "@/features/pdf-tools/repair/RepairPdfTool";
 import { FormsPdfTool } from "@/features/pdf-tools/forms/FormsPdfTool";
+import { usePageSeo } from "@/hooks/usePageSeo";
+import {
+  buildToolPageDescription,
+  buildToolPageTitle,
+} from "@/lib/seo";
+import { buildToolStructuredData } from "@/lib/seoStructuredData";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import {
   getToolBySlug,
@@ -83,6 +95,31 @@ export function ToolPage() {
     setLayoutImageImport(null);
   }, []);
 
+  const seo = useMemo(() => {
+    if (!tool || tool.status !== "available") {
+      return null;
+    }
+    return {
+      title: buildToolPageTitle(tool.name),
+      description: buildToolPageDescription(
+        tool.name,
+        tool.description,
+        tool.longDescription,
+      ),
+      path: `/herramientas/${tool.slug}`,
+      jsonLd: buildToolStructuredData(tool),
+    };
+  }, [tool]);
+
+  usePageSeo(
+    seo ?? {
+      title: "Herramienta no encontrada",
+      description: "La herramienta PDF solicitada no existe en iHatePDF.",
+      path: slug ? `/herramientas/${slug}` : "/herramientas",
+      noIndex: true,
+    },
+  );
+
   if (!tool || tool.status !== "available") {
     return <NotFoundPage />;
   }
@@ -98,6 +135,9 @@ export function ToolPage() {
 
   return (
     <main className="flex h-full min-h-0 flex-col overflow-hidden">
+      <h1 className="sr-only">
+        {tool.name} online gratis — iHatePDF
+      </h1>
       <ToolHeader tool={tool} actions={headerActions} />
       <div className="container-tool min-h-0 flex-1 overflow-hidden pb-4 pt-3">
         {tool.implementation === "merge-pdfs" ? <MergePdfTool /> : null}
