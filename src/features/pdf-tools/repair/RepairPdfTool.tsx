@@ -1,16 +1,19 @@
 import { useState } from "react";
-import { FileText, Loader2 } from "lucide-react";
+import { Wrench, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ToolWorkspace } from "@/features/pdf-tools/shared/ToolWorkspace";
 import { validateSinglePdfFile } from "@/features/pdf-tools/shared/fileValidation";
-import { loadPdfDocument } from "@/features/pdf-tools/shared/pdfPreview";
 import {
   DownloadReadyBanner,
   type DownloadResult,
 } from "@/features/pdf-tools/shared/DownloadReadyBanner";
+import {
+  createPdfOperationWorker,
+  runPdfOperation,
+} from "@/features/pdf-tools/shared/pdfOperationClient";
 
-export function ExtractTextTool() {
+export function RepairPdfTool() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -22,9 +25,10 @@ export function ExtractTextTool() {
     const file = files[0];
     if (!file) return;
 
+    // We don't strictly validate structure because it might be corrupt, but we validate type/size
     const validation = validateSinglePdfFile(file);
     if (!validation.isValid) {
-      setErrorMessage(validation.errors[0] ?? "No se pudo leer el PDF.");
+      setErrorMessage(validation.errors[0] ?? "No se pudo leer el archivo.");
       return;
     }
 
@@ -33,7 +37,7 @@ export function ExtractTextTool() {
     setSelectedFile(file);
   }
 
-  async function handleExtractText() {
+  async function handleRepair() {
     if (!selectedFile) return;
 
     setIsProcessing(true);
@@ -41,34 +45,28 @@ export function ExtractTextTool() {
     setDownloadResult(null);
 
     try {
-      const pdf = await loadPdfDocument(selectedFile);
-      const textParts: string[] = [];
+      const buffer = await selectedFile.arrayBuffer();
+      const worker = createPdfOperationWorker();
+      const result = await runPdfOperation(worker, {
+        kind: "repair-pdf",
+        file: { name: selectedFile.name, buffer },
+      });
 
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          .map((item) => ("str" in item ? item.str : ""))
-          .join(" ");
-        textParts.push(`--- Página ${i} ---\n${pageText}\n`);
+      if (result.kind === "file") {
+        const blob = new Blob([result.buffer], { type: result.mimeType });
+        const url = URL.createObjectURL(blob);
+        setDownloadResult({
+          url,
+          fileName: selectedFile.name.replace(/\.pdf$/i, "") + "-reparado.pdf",
+          mimeType: result.mimeType,
+        });
+      } else {
+        throw new Error("Respuesta inesperada del worker.");
       }
-
-      const finalString = textParts.join("\n");
-      const blob = new Blob([finalString], {
-        type: "text/plain;charset=utf-8",
-      });
-      const url = URL.createObjectURL(blob);
-
-      const fileName = selectedFile.name.replace(/\.pdf$/i, "") + "-texto.txt";
-
-      setDownloadResult({
-        url,
-        fileName,
-        mimeType: "text/plain",
-      });
+      worker.terminate();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Error al extraer texto.",
+        error instanceof Error ? error.message : "Error al reparar PDF.",
       );
     } finally {
       setIsProcessing(false);
@@ -80,7 +78,7 @@ export function ExtractTextTool() {
       type="button"
       variant="brand"
       size="lg"
-      onClick={handleExtractText}
+      onClick={handleRepair}
       disabled={!selectedFile || isProcessing}
       className="w-full"
     >
@@ -91,9 +89,9 @@ export function ExtractTextTool() {
           aria-hidden
         />
       ) : (
-        <FileText data-icon="inline-start" aria-hidden />
+        <Wrench data-icon="inline-start" aria-hidden />
       )}
-      {isProcessing ? "Extrayendo texto" : "Extraer texto a TXT"}
+      {isProcessing ? "Reparando documento" : "Reparar PDF"}
     </Button>
   );
 
@@ -104,28 +102,29 @@ export function ExtractTextTool() {
       isProcessing={isProcessing}
       onFilesSelected={handleFilesSelected}
       emptyTitle="Selecciona un PDF"
-      emptyDescription="Extrae todo el texto seleccionable de las páginas del PDF."
+      emptyDescription="Sube un archivo PDF corrupto o que no se puede abrir."
       emptyActionLabel="Seleccionar PDF"
       emptyHint="Hasta 50 MB por archivo"
       preview={
         selectedFile ? (
           <div className="flex h-full items-center justify-center bg-card rounded-xl border flex-col gap-4 text-muted-foreground p-8 text-center">
-            <FileText className="size-16 opacity-50" />
+            <Wrench className="size-16 opacity-50 text-destructive" />
             <div>
               <p className="font-medium text-foreground">{selectedFile.name}</p>
-              <p className="text-sm">Listo para extraer el texto.</p>
+              <p className="text-sm">Listo para intentar reconstrucción.</p>
             </div>
           </div>
         ) : (
           <div />
         )
       }
-      sidebarTitle="PDF a texto"
-      sidebarDescription="Convierte el contenido a un archivo de texto plano (.txt)."
+      sidebarTitle="Reparar PDF"
+      sidebarDescription="Intenta arreglar un PDF dañado reconstruyendo su estructura interna."
       sidebar={
         <div className="text-sm text-muted-foreground">
-          Nota: Solo se extraerá texto real, no texto dentro de imágenes
-          escaneadas. Usa OCR para imágenes.
+          La reparación funciona mejor con tablas de referencias cruzadas (XRef)
+          dañadas. Si el archivo está completamente ilegible (no es PDF real),
+          no se podrá reparar.
         </div>
       }
       primaryAction={primaryAction}

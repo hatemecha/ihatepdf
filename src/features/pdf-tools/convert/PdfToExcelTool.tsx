@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { FileText, Loader2 } from "lucide-react";
+import { Table, Loader2 } from "lucide-react";
+import ExcelJS from "exceljs";
 
 import { Button } from "@/components/ui/button";
 import { ToolWorkspace } from "@/features/pdf-tools/shared/ToolWorkspace";
@@ -10,7 +11,7 @@ import {
   type DownloadResult,
 } from "@/features/pdf-tools/shared/DownloadReadyBanner";
 
-export function ExtractTextTool() {
+export function PdfToExcelTool() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -24,7 +25,7 @@ export function ExtractTextTool() {
 
     const validation = validateSinglePdfFile(file);
     if (!validation.isValid) {
-      setErrorMessage(validation.errors[0] ?? "No se pudo leer el PDF.");
+      setErrorMessage(validation.errors[0] ?? "No se pudo leer el archivo.");
       return;
     }
 
@@ -33,44 +34,73 @@ export function ExtractTextTool() {
     setSelectedFile(file);
   }
 
-  async function handleExtractText() {
+  async function handleConvert() {
     if (!selectedFile) return;
 
     setIsProcessing(true);
     setErrorMessage(null);
     setDownloadResult(null);
 
-    try {
-      const pdf = await loadPdfDocument(selectedFile);
-      const textParts: string[] = [];
+    let pdf: Awaited<ReturnType<typeof loadPdfDocument>> | null = null;
 
-      for (let i = 1; i <= pdf.numPages; i++) {
+    try {
+      pdf = await loadPdfDocument(selectedFile);
+      const numPages = pdf.numPages;
+
+      const workbook = new ExcelJS.Workbook();
+
+      for (let i = 1; i <= numPages; i++) {
+        const worksheet = workbook.addWorksheet(`Página ${i}`);
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          .map((item) => ("str" in item ? item.str : ""))
-          .join(" ");
-        textParts.push(`--- Página ${i} ---\n${pageText}\n`);
+
+        // Group items by Y position roughly to form rows
+        const rowsMap = new Map<number, { x: number; str: string }[]>();
+
+        for (const item of textContent.items) {
+          if ("str" in item && item.str.trim() !== "") {
+            const x = item.transform[4];
+            const y = Math.round(item.transform[5] / 5) * 5; // Group by 5pt intervals
+
+            if (!rowsMap.has(y)) {
+              rowsMap.set(y, []);
+            }
+            rowsMap.get(y)!.push({ x, str: item.str });
+          }
+        }
+
+        // Sort rows by Y descending (PDF coordinates start from bottom)
+        const sortedY = Array.from(rowsMap.keys()).sort((a, b) => b - a);
+
+        for (const y of sortedY) {
+          const rowItems = rowsMap.get(y)!;
+          // Sort by X ascending
+          rowItems.sort((a, b) => a.x - b.x);
+
+          // Simple column mapping based on order
+          const rowData = rowItems.map((item) => item.str);
+          worksheet.addRow(rowData);
+        }
       }
 
-      const finalString = textParts.join("\n");
-      const blob = new Blob([finalString], {
-        type: "text/plain;charset=utf-8",
+      const excelBuffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([excelBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
       const url = URL.createObjectURL(blob);
 
-      const fileName = selectedFile.name.replace(/\.pdf$/i, "") + "-texto.txt";
-
       setDownloadResult({
         url,
-        fileName,
-        mimeType: "text/plain",
+        fileName: selectedFile.name.replace(/\.pdf$/i, "") + "-convertido.xlsx",
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Error al extraer texto.",
+        error instanceof Error ? error.message : "Error al convertir a Excel.",
       );
     } finally {
+      await pdf?.destroy();
       setIsProcessing(false);
     }
   }
@@ -80,7 +110,7 @@ export function ExtractTextTool() {
       type="button"
       variant="brand"
       size="lg"
-      onClick={handleExtractText}
+      onClick={handleConvert}
       disabled={!selectedFile || isProcessing}
       className="w-full"
     >
@@ -91,9 +121,9 @@ export function ExtractTextTool() {
           aria-hidden
         />
       ) : (
-        <FileText data-icon="inline-start" aria-hidden />
+        <Table data-icon="inline-start" aria-hidden />
       )}
-      {isProcessing ? "Extrayendo texto" : "Extraer texto a TXT"}
+      {isProcessing ? "Convirtiendo a Excel" : "Convertir PDF a Excel"}
     </Button>
   );
 
@@ -102,30 +132,32 @@ export function ExtractTextTool() {
       accept="application/pdf,.pdf"
       hasContent={Boolean(selectedFile)}
       isProcessing={isProcessing}
+      experimental
       onFilesSelected={handleFilesSelected}
       emptyTitle="Selecciona un PDF"
-      emptyDescription="Extrae todo el texto seleccionable de las páginas del PDF."
+      emptyDescription="Sube un archivo PDF para extraer sus datos a una hoja de cálculo Excel (.xlsx)."
       emptyActionLabel="Seleccionar PDF"
       emptyHint="Hasta 50 MB por archivo"
       preview={
         selectedFile ? (
           <div className="flex h-full items-center justify-center bg-card rounded-xl border flex-col gap-4 text-muted-foreground p-8 text-center">
-            <FileText className="size-16 opacity-50" />
+            <Table className="size-16 opacity-50 text-green-600" />
             <div>
               <p className="font-medium text-foreground">{selectedFile.name}</p>
-              <p className="text-sm">Listo para extraer el texto.</p>
+              <p className="text-sm">Listo para extraer tablas a XLSX.</p>
             </div>
           </div>
         ) : (
           <div />
         )
       }
-      sidebarTitle="PDF a texto"
-      sidebarDescription="Convierte el contenido a un archivo de texto plano (.txt)."
+      sidebarTitle="PDF a Excel"
+      sidebarDescription="Convierte documentos PDF a hojas de cálculo localmente."
       sidebar={
         <div className="text-sm text-muted-foreground">
-          Nota: Solo se extraerá texto real, no texto dentro de imágenes
-          escaneadas. Usa OCR para imágenes.
+          Extrae los datos de tu PDF agrupándolos en filas. Ideal para tablas y
+          listados. Al ser un proceso local, el formato puede variar según la
+          complejidad del documento.
         </div>
       }
       primaryAction={primaryAction}

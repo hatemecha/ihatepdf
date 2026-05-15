@@ -18,7 +18,7 @@ export function SignPdfTool() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [signatureImage, setSignatureImage] = useState<File | null>(null);
   const [pageCount, setPageCount] = useState(0);
-  
+
   const [page, setPage] = useState(1);
   const [xPos, setXPos] = useState(50);
   const [yPos, setYPos] = useState(50);
@@ -27,7 +27,9 @@ export function SignPdfTool() {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(null);
+  const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(
+    null,
+  );
 
   async function handleFilesSelected(files: File[]) {
     const file = files[0];
@@ -41,12 +43,12 @@ export function SignPdfTool() {
 
     setErrorMessage(null);
     setDownloadResult(null);
-    
+
     try {
       const count = await getPdfPageCount(file);
       setPageCount(count);
       setSelectedFile(file);
-    } catch (e) {
+    } catch {
       setErrorMessage("Error al contar las páginas del PDF.");
     }
   }
@@ -54,10 +56,10 @@ export function SignPdfTool() {
   function handleSignatureUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file && (file.type === "image/png" || file.type === "image/jpeg")) {
-       setSignatureImage(file);
-       setErrorMessage(null);
+      setSignatureImage(file);
+      setErrorMessage(null);
     } else {
-       setErrorMessage("La firma debe ser una imagen PNG o JPG.");
+      setErrorMessage("La firma debe ser una imagen PNG o JPG.");
     }
   }
 
@@ -83,7 +85,7 @@ export function SignPdfTool() {
           width,
           height,
           signatureImage: imgBuffer,
-        }
+        },
       });
 
       if (result.kind === "file") {
@@ -117,7 +119,11 @@ export function SignPdfTool() {
       className="w-full"
     >
       {isProcessing ? (
-        <Loader2 className="animate-spin" data-icon="inline-start" aria-hidden />
+        <Loader2
+          className="animate-spin"
+          data-icon="inline-start"
+          aria-hidden
+        />
       ) : (
         <PenTool data-icon="inline-start" aria-hidden />
       )}
@@ -138,49 +144,100 @@ export function SignPdfTool() {
       preview={
         selectedFile ? (
           <div className="flex h-full items-center justify-center bg-card rounded-xl border flex-col gap-6 text-muted-foreground p-8 text-center overflow-y-auto">
-             {!signatureImage ? (
-               <div className="flex flex-col items-center gap-4">
-                  <ImageIcon className="size-16 opacity-50" />
-                  <p className="font-medium text-foreground">Sube tu firma</p>
-                  <label className="cursor-pointer bg-brand hover:bg-brand/90 text-primary-foreground px-4 py-2 rounded-md font-medium text-sm transition-colors">
-                     Seleccionar imagen (PNG/JPG)
-                     <input type="file" accept="image/png, image/jpeg" className="hidden" onChange={handleSignatureUpload} />
-                  </label>
-               </div>
-             ) : (
-                <div className="flex flex-col items-center gap-4">
-                   <div className="border border-brand p-2 bg-white rounded flex items-center justify-center" style={{ width: width, height: height }}>
-                      <img src={URL.createObjectURL(signatureImage)} className="max-w-full max-h-full object-contain" alt="Firma" />
-                   </div>
-                   <div className="text-sm">
-                      <p className="font-medium text-foreground">Configuración de firma</p>
-                      <div className="grid grid-cols-2 gap-4 mt-4 text-left">
-                         <label className="flex flex-col gap-1">
-                            Página (1-{pageCount})
-                            <input type="number" min={1} max={pageCount} value={page} onChange={e => setPage(parseInt(e.target.value) || 1)} className="border rounded px-2 py-1 bg-background text-foreground" />
-                         </label>
-                         <div />
-                         <label className="flex flex-col gap-1">
-                            Posición X (puntos)
-                            <input type="number" value={xPos} onChange={e => setXPos(parseInt(e.target.value) || 0)} className="border rounded px-2 py-1 bg-background text-foreground" />
-                         </label>
-                         <label className="flex flex-col gap-1">
-                            Posición Y (puntos)
-                            <input type="number" value={yPos} onChange={e => setYPos(parseInt(e.target.value) || 0)} className="border rounded px-2 py-1 bg-background text-foreground" />
-                         </label>
-                         <label className="flex flex-col gap-1">
-                            Ancho (puntos)
-                            <input type="number" value={width} onChange={e => setWidth(parseInt(e.target.value) || 0)} className="border rounded px-2 py-1 bg-background text-foreground" />
-                         </label>
-                         <label className="flex flex-col gap-1">
-                            Alto (puntos)
-                            <input type="number" value={height} onChange={e => setHeight(parseInt(e.target.value) || 0)} className="border rounded px-2 py-1 bg-background text-foreground" />
-                         </label>
-                      </div>
-                   </div>
-                   <Button variant="ghost" size="sm" onClick={() => setSignatureImage(null)}>Cambiar firma</Button>
+            {!signatureImage ? (
+              <div className="flex flex-col items-center gap-4">
+                <ImageIcon className="size-16 opacity-50" />
+                <p className="font-medium text-foreground">Sube tu firma</p>
+                <label className="cursor-pointer bg-brand hover:bg-brand/90 text-primary-foreground px-4 py-2 rounded-md font-medium text-sm transition-colors">
+                  Seleccionar imagen (PNG/JPG)
+                  <input
+                    type="file"
+                    accept="image/png, image/jpeg"
+                    className="hidden"
+                    onChange={handleSignatureUpload}
+                  />
+                </label>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-4">
+                <div
+                  className="border border-brand p-2 bg-white rounded flex items-center justify-center"
+                  style={{ width: width, height: height }}
+                >
+                  <img
+                    src={URL.createObjectURL(signatureImage)}
+                    className="max-w-full max-h-full object-contain"
+                    alt="Firma"
+                  />
                 </div>
-             )}
+                <div className="text-sm">
+                  <p className="font-medium text-foreground">
+                    Configuración de firma
+                  </p>
+                  <div className="grid grid-cols-2 gap-4 mt-4 text-left">
+                    <label className="flex flex-col gap-1">
+                      Página (1-{pageCount})
+                      <input
+                        type="number"
+                        min={1}
+                        max={pageCount}
+                        value={page}
+                        onChange={(e) => setPage(parseInt(e.target.value) || 1)}
+                        className="border rounded px-2 py-1 bg-background text-foreground"
+                      />
+                    </label>
+                    <div />
+                    <label className="flex flex-col gap-1">
+                      Posición X (puntos)
+                      <input
+                        type="number"
+                        value={xPos}
+                        onChange={(e) => setXPos(parseInt(e.target.value) || 0)}
+                        className="border rounded px-2 py-1 bg-background text-foreground"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      Posición Y (puntos)
+                      <input
+                        type="number"
+                        value={yPos}
+                        onChange={(e) => setYPos(parseInt(e.target.value) || 0)}
+                        className="border rounded px-2 py-1 bg-background text-foreground"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      Ancho (puntos)
+                      <input
+                        type="number"
+                        value={width}
+                        onChange={(e) =>
+                          setWidth(parseInt(e.target.value) || 0)
+                        }
+                        className="border rounded px-2 py-1 bg-background text-foreground"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      Alto (puntos)
+                      <input
+                        type="number"
+                        value={height}
+                        onChange={(e) =>
+                          setHeight(parseInt(e.target.value) || 0)
+                        }
+                        className="border rounded px-2 py-1 bg-background text-foreground"
+                      />
+                    </label>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSignatureImage(null)}
+                >
+                  Cambiar firma
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <div />
@@ -190,15 +247,19 @@ export function SignPdfTool() {
       sidebarDescription="Añade tu firma o un sello visual al documento."
       sidebar={
         <div className="text-sm text-muted-foreground flex flex-col gap-2">
-           <p>1. Selecciona el PDF.</p>
-           <p>2. Sube una imagen de tu firma (preferiblemente PNG sin fondo).</p>
-           <p>3. Ajusta la posición y tamaño.</p>
-           <p>4. Guarda el documento.</p>
+          <p>1. Selecciona el PDF.</p>
+          <p>2. Sube una imagen de tu firma (preferiblemente PNG sin fondo).</p>
+          <p>3. Ajusta la posición y tamaño.</p>
+          <p>4. Guarda el documento.</p>
         </div>
       }
       primaryAction={primaryAction}
       errorMessage={errorMessage}
-      resultBanner={downloadResult ? <DownloadReadyBanner downloadResult={downloadResult} /> : null}
+      resultBanner={
+        downloadResult ? (
+          <DownloadReadyBanner downloadResult={downloadResult} />
+        ) : null
+      }
     />
   );
 }

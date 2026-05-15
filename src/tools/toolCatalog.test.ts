@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { getAllTools, searchTools } from "./toolCatalog";
+import {
+  OFFICE_CONVERSION_SLUGS,
+  getAllTools,
+  isExperimentalTool,
+  searchTools,
+} from "./toolCatalog";
 
 describe("toolCatalog search", () => {
   it("returns all tools for empty query", () => {
@@ -20,5 +25,13 @@ describe("toolCatalog search", () => {
     expect(
       searchTools("proteger").some((tool) => tool.slug === "protect"),
     ).toBe(true);
+  });
+
+  it("marks office conversion tools as experimental", () => {
+    for (const slug of OFFICE_CONVERSION_SLUGS) {
+      const tool = getAllTools().find((entry) => entry.slug === slug);
+      expect(tool).toBeDefined();
+      expect(isExperimentalTool(tool!)).toBe(true);
+    }
   });
 });

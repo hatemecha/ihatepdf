@@ -700,7 +700,7 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
         selectedFiles.map(async (f) => ({
           name: f.name,
           buffer: await f.arrayBuffer(),
-        }))
+        })),
       );
       const worker = createPdfOperationWorker();
       workerRef.current = worker;
@@ -749,7 +749,9 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
   }, []);
 
   const preview =
-    selectedFiles.length > 0 && pageCount > 0 && !config.skipPreviewInspection ? (
+    selectedFiles.length > 0 &&
+    pageCount > 0 &&
+    !config.skipPreviewInspection ? (
       <PdfFocusedPreview
         file={selectedFiles[0]}
         pageLabel={pageCount > 1 ? `Página 1 de ${pageCount}` : "Página 1"}
@@ -763,7 +765,7 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
         description={
           selectedFiles.length > 1
             ? `${selectedFiles.length} PDFs seleccionados`
-            : selectedFiles[0]?.name ?? "PDF seleccionado"
+            : (selectedFiles[0]?.name ?? "PDF seleccionado")
         }
         Icon={config.actionIcon}
       />

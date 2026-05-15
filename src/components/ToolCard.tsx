@@ -1,7 +1,9 @@
 import { ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { ExperimentalToolBadge } from "@/components/ExperimentalToolBadge";
 import { Badge } from "@/components/ui/badge";
+import { isExperimentalTool } from "@/tools/toolCatalog";
 import {
   Card,
   CardDescription,
@@ -37,6 +39,7 @@ export function ToolCard({ tool }: ToolCardProps) {
           <div className="flex flex-wrap items-center gap-2">
             <CardTitle className="text-base">{tool.name}</CardTitle>
             {tool.highlight ? <Badge variant="brand">Destacada</Badge> : null}
+            {isExperimentalTool(tool) ? <ExperimentalToolBadge /> : null}
           </div>
           <CardDescription className="text-sm leading-relaxed">
             {tool.description}

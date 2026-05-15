@@ -20,6 +20,11 @@ import {
   Stamp,
   Trash2,
   Unlock,
+  Wrench,
+  Table,
+  Presentation,
+  FileUp,
+  ClipboardList,
   type LucideIcon,
 } from "lucide-react";
 
@@ -48,11 +53,19 @@ type ToolImplementation =
   | "pdf-to-text"
   | "scan-to-pdf"
   | "ocr-pdf"
-  | "sign-pdf";
+  | "sign-pdf"
+  | "pdf-to-word"
+  | "pdf-to-excel"
+  | "pdf-to-powerpoint"
+  | "office-to-pdf"
+  | "repair-pdf"
+  | "forms-pdf";
 
 export interface ToolCategory {
   id: ToolCategoryId;
   label: string;
+  /** Frase corta orientada a qué quiere lograr el usuario. */
+  tagline: string;
   description: string;
 }
 
@@ -66,23 +79,42 @@ export interface Tool {
   implementation: ToolImplementation;
   icon: LucideIcon;
   highlight?: boolean;
+  /** Office conversions not fully QA'd yet. */
+  experimental?: boolean;
+}
+
+export const OFFICE_CONVERSION_SLUGS = [
+  "pdf-to-word",
+  "pdf-to-excel",
+  "pdf-to-powerpoint",
+  "office-to-pdf",
+] as const;
+
+export function isExperimentalTool(tool: Tool): boolean {
+  return tool.experimental === true;
 }
 
 const TOOL_CATEGORIES: ToolCategory[] = [
   {
     id: "organize",
-    label: "Organizar PDF",
-    description: "Une, separa y reordena páginas sin salir del navegador.",
+    label: "Organizar",
+    tagline: "Unir, dividir u ordenar páginas",
+    description:
+      "Combina varios archivos, separa páginas o cambia el orden sin subir nada a internet.",
   },
   {
     id: "convert",
-    label: "Convertir PDF",
-    description: "Convierte entre PDF e imágenes con descargas listas.",
+    label: "Convertir",
+    tagline: "Cambiar de formato o extraer contenido",
+    description:
+      "Pasa tu PDF a Word, imágenes o texto, o convierte otros formatos a PDF.",
   },
   {
     id: "edit",
-    label: "Editar PDF",
-    description: "Ajustes puntuales para documentos que ya existen.",
+    label: "Editar",
+    tagline: "Ajustar, firmar o proteger el documento",
+    description:
+      "Comprime, añade marcas de agua, números, contraseñas y otros cambios puntuales.",
   },
 ];
 
@@ -321,6 +353,76 @@ const TOOLS: Tool[] = [
     implementation: "sign-pdf",
     icon: PenTool,
   },
+  {
+    slug: "pdf-to-word",
+    name: "PDF a Word",
+    description: "Convierte tu PDF a un documento DOCX.",
+    longDescription:
+      "Extrae texto editable e imágenes incrustadas del PDF a un DOCX que puedes modificar en Word.",
+    category: "convert",
+    status: "available",
+    implementation: "pdf-to-word",
+    icon: FileText,
+    experimental: true,
+  },
+  {
+    slug: "pdf-to-excel",
+    name: "PDF a Excel",
+    description: "Extrae datos tabulares a XLSX.",
+    longDescription:
+      "Convierte el contenido de tu PDF en una hoja de cálculo Excel.",
+    category: "convert",
+    status: "available",
+    implementation: "pdf-to-excel",
+    icon: Table,
+    experimental: true,
+  },
+  {
+    slug: "pdf-to-powerpoint",
+    name: "PDF a PowerPoint",
+    description: "Convierte páginas a diapositivas PPTX.",
+    longDescription:
+      "Extrae texto e imágenes creando una presentación PowerPoint editable.",
+    category: "convert",
+    status: "available",
+    implementation: "pdf-to-powerpoint",
+    icon: Presentation,
+    experimental: true,
+  },
+  {
+    slug: "office-to-pdf",
+    name: "Office a PDF",
+    description: "Convierte Word, Excel y PPT a PDF.",
+    longDescription:
+      "Transforma documentos de Microsoft Office en PDF sin enviarlos a ningún servidor (conversión básica).",
+    category: "convert",
+    status: "available",
+    implementation: "office-to-pdf",
+    icon: FileUp,
+    experimental: true,
+  },
+  {
+    slug: "repair-pdf",
+    name: "Reparar PDF",
+    description: "Arregla un PDF dañado o corrupto.",
+    longDescription:
+      "Intenta reconstruir la estructura interna de un PDF que no se puede abrir.",
+    category: "organize",
+    status: "available",
+    implementation: "repair-pdf",
+    icon: Wrench,
+  },
+  {
+    slug: "forms-pdf",
+    name: "Formularios PDF",
+    description: "Rellena y aplana formularios PDF.",
+    longDescription:
+      "Detecta campos interactivos en el PDF, permite rellenarlos y aplana el resultado para que no se puedan modificar.",
+    category: "edit",
+    status: "available",
+    implementation: "forms-pdf",
+    icon: ClipboardList,
+  },
 ];
 
 const TOOL_SEARCH_SYNONYMS: Record<string, string[]> = {
@@ -339,12 +441,31 @@ const TOOL_SEARCH_SYNONYMS: Record<string, string[]> = {
   "images-to-pdf": ["imagen", "jpg", "png", "foto"],
   "pdf-to-images": ["exportar", "png", "jpg", "webp"],
   "view-metadata": ["ver", "metadatos", "propiedades", "autor"],
-  "remove-metadata": ["eliminar", "borrar", "limpiar", "metadatos", "propiedades"],
+  "remove-metadata": [
+    "eliminar",
+    "borrar",
+    "limpiar",
+    "metadatos",
+    "propiedades",
+  ],
   "extract-images": ["extraer", "sacar", "imagenes", "fotos"],
   "pdf-to-text": ["convertir", "texto", "txt", "extraer texto"],
   "scan-to-pdf": ["escanear", "camara", "foto", "digitalizar"],
   "ocr-pdf": ["ocr", "reconocimiento", "texto", "escaner", "escaneado"],
   "sign-pdf": ["firmar", "firma", "rubrica", "dibujar"],
+  "pdf-to-word": ["word", "docx", "convertir"],
+  "pdf-to-excel": ["excel", "xlsx", "tabla", "hoja"],
+  "pdf-to-powerpoint": ["powerpoint", "pptx", "presentacion", "diapositiva"],
+  "office-to-pdf": [
+    "word a pdf",
+    "excel a pdf",
+    "ppt a pdf",
+    "docx a pdf",
+    "xlsx a pdf",
+    "pptx a pdf",
+  ],
+  "repair-pdf": ["reparar", "arreglar", "corrupto", "dañado", "roto"],
+  "forms-pdf": ["formulario", "rellenar", "form", "aplanar", "campos"],
 };
 
 function normalizeSearchText(value: string): string {

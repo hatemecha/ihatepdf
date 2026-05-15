@@ -6,9 +6,14 @@ import { cn } from "@/lib/utils";
 interface ToolSearchFieldProps {
   onChange: (value: string) => void;
   className?: string;
+  placeholder?: string;
 }
 
-export function ToolSearchField({ onChange, className }: ToolSearchFieldProps) {
+export function ToolSearchField({
+  onChange,
+  className,
+  placeholder = "Buscar herramienta…",
+}: ToolSearchFieldProps) {
   const [draft, setDraft] = useState("");
   const debounceRef = useRef<number | null>(null);
 
@@ -45,7 +50,7 @@ export function ToolSearchField({ onChange, className }: ToolSearchFieldProps) {
         type="search"
         value={draft}
         onChange={(event) => handleChange(event.target.value)}
-        placeholder="Buscar herramienta…"
+        placeholder={placeholder}
         aria-label="Buscar herramienta"
         className="field-input h-11 w-full rounded-full pr-10 pl-10 text-sm focus-visible:shadow-none"
       />

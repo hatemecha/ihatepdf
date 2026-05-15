@@ -135,7 +135,7 @@ export type PdfOperationRequest =
   | {
       kind: "rotate-pages";
       files: PdfInputFile[];
-      pages: number[]; // applies to all if possible, or maybe we just rotate all pages if batch? 
+      pages: number[]; // applies to all if possible, or maybe we just rotate all pages if batch?
       // Actually, if batching rotate, the UI usually applies to all pages or specific ranges. Let's keep `pages` for single file, and if batch, apply to all pages? No, the UI for SinglePdfOperationTool previews one file. If multiple are passed, we might just apply the rotation to ALL pages of ALL files, or to the same page indices. Let's just keep the type as is and we'll handle the logic in the worker.
       angle: 90 | 180 | 270;
     }
@@ -180,6 +180,10 @@ export type PdfOperationRequest =
         height: number;
         signatureImage: ArrayBuffer;
       };
+    }
+  | {
+      kind: "repair-pdf";
+      file: PdfInputFile;
     };
 
 export type PdfOperationResult =

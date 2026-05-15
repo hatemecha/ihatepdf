@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { Images, Loader2 } from "lucide-react";
-import JSZip from "jszip";
+import { FileText, Loader2 } from "lucide-react";
+import { Document, Packer, Paragraph } from "docx";
 
 import { Button } from "@/components/ui/button";
 import { ToolWorkspace } from "@/features/pdf-tools/shared/ToolWorkspace";
 import { validateSinglePdfFile } from "@/features/pdf-tools/shared/fileValidation";
-import { extractPageEmbeddedImages } from "@/features/pdf-tools/shared/pdfEmbeddedImages";
 import {
   getPdfjs,
   loadPdfDocument,
@@ -14,14 +13,16 @@ import {
   DownloadReadyBanner,
   type DownloadResult,
 } from "@/features/pdf-tools/shared/DownloadReadyBanner";
+import { buildEditablePageParagraphs } from "@/features/pdf-tools/convert/pdfToWordConversion";
 
-export function ExtractImagesTool() {
+export function PdfToWordTool() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(
     null,
   );
+  const [progress, setProgress] = useState<string | null>(null);
 
   function handleFilesSelected(files: File[]) {
     const file = files[0];
@@ -29,7 +30,7 @@ export function ExtractImagesTool() {
 
     const validation = validateSinglePdfFile(file);
     if (!validation.isValid) {
-      setErrorMessage(validation.errors[0] ?? "No se pudo leer el PDF.");
+      setErrorMessage(validation.errors[0] ?? "No se pudo leer el archivo.");
       return;
     }
 
@@ -38,12 +39,13 @@ export function ExtractImagesTool() {
     setSelectedFile(file);
   }
 
-  async function handleExtractImages() {
+  async function handleConvert() {
     if (!selectedFile) return;
 
     setIsProcessing(true);
     setErrorMessage(null);
     setDownloadResult(null);
+    setProgress(null);
 
     let pdf: Awaited<ReturnType<typeof loadPdfDocument>> | null = null;
 
@@ -53,49 +55,61 @@ export function ExtractImagesTool() {
         getPdfjs(),
       ]);
       pdf = loadedPdf;
-      const zip = new JSZip();
-      let imageCount = 0;
+      const numPages = pdf.numPages;
+      const paragraphs: Paragraph[] = [];
       const paintImageOps = [
         pdfjs.OPS.paintImageXObject,
         pdfjs.OPS.paintImageXObjectRepeat,
       ] as const;
 
-      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      for (let pageNumber = 1; pageNumber <= numPages; pageNumber += 1) {
+        setProgress(`Extrayendo contenido de la página ${pageNumber}…`);
         const page = await pdf.getPage(pageNumber);
+
         try {
-          const images = await extractPageEmbeddedImages(page, paintImageOps);
-          for (const image of images) {
-            imageCount += 1;
-            zip.file(`image-${pageNumber}-${imageCount}.png`, image.data);
-          }
+          const pageParagraphs = await buildEditablePageParagraphs(
+            page,
+            pageNumber,
+            numPages,
+            paintImageOps,
+          );
+          paragraphs.push(...pageParagraphs);
         } finally {
           page.cleanup();
         }
+
+        if (pageNumber < numPages) {
+          paragraphs.push(new Paragraph({ pageBreakBefore: true }));
+        }
       }
 
-      if (imageCount === 0) {
-        throw new Error("No se encontraron imágenes en este PDF.");
+      if (paragraphs.length === 0) {
+        throw new Error(
+          "No se encontró texto ni imágenes editables. Prueba con la herramienta OCR si el PDF es un escaneo.",
+        );
       }
 
-      const zipBytes = await zip.generateAsync({ type: "arraybuffer" });
-      const blob = new Blob([zipBytes], { type: "application/zip" });
+      const docx = new Document({
+        sections: [{ properties: {}, children: paragraphs }],
+      });
+
+      const blob = await Packer.toBlob(docx);
       const url = URL.createObjectURL(blob);
-
-      const fileName =
-        selectedFile.name.replace(/\.pdf$/i, "") + "-imagenes.zip";
 
       setDownloadResult({
         url,
-        fileName,
-        mimeType: "application/zip",
+        fileName: `${selectedFile.name.replace(/\.pdf$/i, "")}-convertido.docx`,
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       });
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "Error al extraer imágenes.",
+        error instanceof Error ? error.message : "Error al convertir a Word.",
       );
     } finally {
       await pdf?.destroy();
       setIsProcessing(false);
+      setProgress(null);
     }
   }
 
@@ -104,7 +118,7 @@ export function ExtractImagesTool() {
       type="button"
       variant="brand"
       size="lg"
-      onClick={handleExtractImages}
+      onClick={handleConvert}
       disabled={!selectedFile || isProcessing}
       className="w-full"
     >
@@ -115,9 +129,9 @@ export function ExtractImagesTool() {
           aria-hidden
         />
       ) : (
-        <Images data-icon="inline-start" aria-hidden />
+        <FileText data-icon="inline-start" aria-hidden />
       )}
-      {isProcessing ? "Extrayendo imágenes" : "Extraer y descargar ZIP"}
+      {isProcessing ? "Convirtiendo a Word" : "Convertir PDF a Word"}
     </Button>
   );
 
@@ -126,30 +140,49 @@ export function ExtractImagesTool() {
       accept="application/pdf,.pdf"
       hasContent={Boolean(selectedFile)}
       isProcessing={isProcessing}
+      experimental
       onFilesSelected={handleFilesSelected}
       emptyTitle="Selecciona un PDF"
-      emptyDescription="Extrae todas las imágenes incrustadas dentro del documento PDF."
+      emptyDescription="Genera un DOCX con texto editable e imágenes incrustadas listas para modificar en Word."
       emptyActionLabel="Seleccionar PDF"
       emptyHint="Hasta 50 MB por archivo"
       preview={
         selectedFile ? (
           <div className="flex h-full flex-col items-center justify-center gap-4 rounded-xl border bg-card p-8 text-center text-muted-foreground">
-            <Images className="size-16 opacity-50" />
+            {isProcessing ? (
+              <Loader2 className="size-16 animate-spin text-brand opacity-80" />
+            ) : (
+              <FileText className="size-16 text-blue-500 opacity-50" />
+            )}
             <div>
               <p className="font-medium text-foreground">{selectedFile.name}</p>
-              <p className="text-sm">Listo para extraer las imágenes.</p>
+              {progress ? (
+                <p className="mt-1 text-sm text-brand">{progress}</p>
+              ) : (
+                <p className="mt-1 text-sm">
+                  Listo para generar DOCX editable.
+                </p>
+              )}
             </div>
           </div>
         ) : (
           <div />
         )
       }
-      sidebarTitle="Extraer imágenes"
-      sidebarDescription="Encuentra todas las imágenes del documento y descárgalas en un archivo ZIP."
+      sidebarTitle="PDF a Word"
+      sidebarDescription="Texto e imágenes editables, sin capturas de página."
       sidebar={
-        <div className="text-sm text-muted-foreground">
-          Esta herramienta extrae las imágenes originales del documento, tal
-          como fueron insertadas (sin reducir la resolución).
+        <div className="flex flex-col gap-3 text-sm text-muted-foreground">
+          <p>
+            Extrae el texto seleccionable del PDF y las imágenes incrustadas
+            como objetos independientes en Word. Puedes editar párrafos,
+            reemplazar fotos y mover contenido libremente.
+          </p>
+          <p>
+            El diseño exacto del PDF no se conserva al píxel (tablas complejas o
+            columnas pueden reordenarse). Para PDFs escaneados sin texto, usa{" "}
+            <strong className="text-foreground">OCR PDF</strong> primero.
+          </p>
         </div>
       }
       primaryAction={primaryAction}

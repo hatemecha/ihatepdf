@@ -2,6 +2,7 @@ import { useCallback, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
+import { ExperimentalToolBadge } from "@/components/ExperimentalToolBadge";
 import { Button } from "@/components/ui/button";
 import {
   AdvancedPdfTool,
@@ -27,8 +28,18 @@ import { ExtractImagesTool } from "@/features/pdf-tools/extract/ExtractImagesToo
 import { ScanToPdfTool } from "@/features/pdf-tools/scan/ScanToPdfTool";
 import { OcrTool } from "@/features/pdf-tools/ocr/OcrTool";
 import { SignPdfTool } from "@/features/pdf-tools/sign/SignPdfTool";
+import { PdfToWordTool } from "@/features/pdf-tools/convert/PdfToWordTool";
+import { PdfToExcelTool } from "@/features/pdf-tools/convert/PdfToExcelTool";
+import { PdfToPowerpointTool } from "@/features/pdf-tools/convert/PdfToPowerpointTool";
+import { OfficeToPdfTool } from "@/features/pdf-tools/convert/OfficeToPdfTool";
+import { RepairPdfTool } from "@/features/pdf-tools/repair/RepairPdfTool";
+import { FormsPdfTool } from "@/features/pdf-tools/forms/FormsPdfTool";
 import { NotFoundPage } from "@/pages/NotFoundPage";
-import { getToolBySlug, type Tool } from "@/tools/toolCatalog";
+import {
+  getToolBySlug,
+  isExperimentalTool,
+  type Tool,
+} from "@/tools/toolCatalog";
 
 export function ToolPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -122,10 +133,20 @@ export function ToolPage() {
         {tool.implementation === "pdf-to-images" ? <PdfToImagesTool /> : null}
         {tool.implementation === "view-metadata" ? <MetadataTool /> : null}
         {tool.implementation === "pdf-to-text" ? <ExtractTextTool /> : null}
-        {tool.implementation === "extract-images" ? <ExtractImagesTool /> : null}
+        {tool.implementation === "extract-images" ? (
+          <ExtractImagesTool />
+        ) : null}
         {tool.implementation === "scan-to-pdf" ? <ScanToPdfTool /> : null}
         {tool.implementation === "ocr-pdf" ? <OcrTool /> : null}
         {tool.implementation === "sign-pdf" ? <SignPdfTool /> : null}
+        {tool.implementation === "pdf-to-word" ? <PdfToWordTool /> : null}
+        {tool.implementation === "pdf-to-excel" ? <PdfToExcelTool /> : null}
+        {tool.implementation === "pdf-to-powerpoint" ? (
+          <PdfToPowerpointTool />
+        ) : null}
+        {tool.implementation === "office-to-pdf" ? <OfficeToPdfTool /> : null}
+        {tool.implementation === "repair-pdf" ? <RepairPdfTool /> : null}
+        {tool.implementation === "forms-pdf" ? <FormsPdfTool /> : null}
       </div>
     </main>
   );
@@ -157,6 +178,7 @@ function ToolHeader({ tool, actions }: ToolHeaderProps) {
               aria-hidden
             />
             <span className="truncate text-sm font-medium">{tool.name}</span>
+            {isExperimentalTool(tool) ? <ExperimentalToolBadge /> : null}
           </div>
         </div>
         {actions ? (

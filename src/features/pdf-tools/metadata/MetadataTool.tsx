@@ -65,7 +65,9 @@ export function MetadataTool() {
 
   const preview = metadata ? (
     <div className="flex h-full flex-col p-4 sm:p-6 lg:p-8 bg-card text-card-foreground border rounded-xl overflow-y-auto">
-      <h3 className="text-xl font-semibold mb-4 border-b pb-2">Metadatos del PDF</h3>
+      <h3 className="text-xl font-semibold mb-4 border-b pb-2">
+        Metadatos del PDF
+      </h3>
       <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
         <div>
           <dt className="text-sm font-medium text-muted-foreground">Título</dt>
@@ -80,7 +82,9 @@ export function MetadataTool() {
           <dd className="mt-1 text-sm">{metadata.subject || "-"}</dd>
         </div>
         <div>
-          <dt className="text-sm font-medium text-muted-foreground">Palabras clave</dt>
+          <dt className="text-sm font-medium text-muted-foreground">
+            Palabras clave
+          </dt>
           <dd className="mt-1 text-sm">{metadata.keywords || "-"}</dd>
         </div>
         <div>
@@ -88,19 +92,29 @@ export function MetadataTool() {
           <dd className="mt-1 text-sm">{metadata.creator || "-"}</dd>
         </div>
         <div>
-          <dt className="text-sm font-medium text-muted-foreground">Productor</dt>
+          <dt className="text-sm font-medium text-muted-foreground">
+            Productor
+          </dt>
           <dd className="mt-1 text-sm">{metadata.producer || "-"}</dd>
         </div>
         <div>
-          <dt className="text-sm font-medium text-muted-foreground">Fecha de creación</dt>
+          <dt className="text-sm font-medium text-muted-foreground">
+            Fecha de creación
+          </dt>
           <dd className="mt-1 text-sm">
-            {metadata.creationDate ? new Date(metadata.creationDate).toLocaleString() : "-"}
+            {metadata.creationDate
+              ? new Date(metadata.creationDate).toLocaleString()
+              : "-"}
           </dd>
         </div>
         <div>
-          <dt className="text-sm font-medium text-muted-foreground">Fecha de modificación</dt>
+          <dt className="text-sm font-medium text-muted-foreground">
+            Fecha de modificación
+          </dt>
           <dd className="mt-1 text-sm">
-            {metadata.modificationDate ? new Date(metadata.modificationDate).toLocaleString() : "-"}
+            {metadata.modificationDate
+              ? new Date(metadata.modificationDate).toLocaleString()
+              : "-"}
           </dd>
         </div>
       </dl>
@@ -126,7 +140,11 @@ export function MetadataTool() {
       preview={preview}
       sidebarTitle="Ver metadatos"
       sidebarDescription="Visualiza información oculta del PDF."
-      sidebar={<div className="text-sm text-muted-foreground">El archivo se lee localmente, sin subirlo a ningún servidor.</div>}
+      sidebar={
+        <div className="text-sm text-muted-foreground">
+          El archivo se lee localmente, sin subirlo a ningún servidor.
+        </div>
+      }
       primaryAction={null}
       errorMessage={errorMessage}
     />

@@ -63,6 +63,7 @@ export default defineConfig({
       "@pdfsmaller/pdf-encrypt",
       "jszip",
       "pdf-lib",
+      "pdfjs-dist/legacy/build/pdf.mjs",
     ],
   },
   resolve: {

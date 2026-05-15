@@ -1,20 +1,31 @@
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist";
 
+/** Legacy build includes Map polyfills required by pdf.js 5.5+. */
 const PDFJS_WORKER_SRC = new URL(
-  "pdfjs-dist/build/pdf.worker.mjs",
+  "pdfjs-dist/legacy/build/pdf.worker.mjs",
   import.meta.url,
 ).toString();
 
-let pdfjsModule: typeof import("pdfjs-dist") | null = null;
+type PdfJsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
 
-async function getPdfjs(): Promise<typeof import("pdfjs-dist")> {
+let pdfjsModule: PdfJsModule | null = null;
+let pdfjsLoadPromise: Promise<PdfJsModule> | null = null;
+
+/** Shared pdf.js entry (legacy build for broader browser support). */
+export async function getPdfjs(): Promise<PdfJsModule> {
   if (pdfjsModule) {
     return pdfjsModule;
   }
-  const mod = await import("pdfjs-dist");
-  mod.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_SRC;
-  pdfjsModule = mod;
-  return mod;
+
+  if (!pdfjsLoadPromise) {
+    pdfjsLoadPromise = import("pdfjs-dist/legacy/build/pdf.mjs").then((mod) => {
+      mod.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_SRC;
+      pdfjsModule = mod;
+      return mod;
+    });
+  }
+
+  return pdfjsLoadPromise;
 }
 
 export async function loadPdfDocument(file: File): Promise<PDFDocumentProxy> {

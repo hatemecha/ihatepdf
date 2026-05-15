@@ -17,28 +17,32 @@ export function ScanToPdfTool() {
   const [images, setImages] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(null);
-  
+  const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(
+    null,
+  );
+
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const startCamera = async () => {
     try {
       setErrorMessage(null);
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "environment" } 
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
       });
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
-    } catch (err) {
-      setErrorMessage("No se pudo acceder a la cámara. Asegúrate de dar permisos.");
+    } catch {
+      setErrorMessage(
+        "No se pudo acceder a la cámara. Asegúrate de dar permisos.",
+      );
     }
   };
 
   const stopCamera = useCallback(() => {
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach((track) => track.stop());
       setStream(null);
     }
   }, [stream]);
@@ -55,18 +59,24 @@ export function ScanToPdfTool() {
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0);
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const file = new File([blob], `scan-${images.length + 1}.jpg`, { type: "image/jpeg" });
-            setImages(prev => [...prev, file]);
-          }
-        }, "image/jpeg", 0.9);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const file = new File([blob], `scan-${images.length + 1}.jpg`, {
+                type: "image/jpeg",
+              });
+              setImages((prev) => [...prev, file]);
+            }
+          },
+          "image/jpeg",
+          0.9,
+        );
       }
     }
   };
 
   const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
+    setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   async function handleGeneratePdf() {
@@ -82,7 +92,7 @@ export function ScanToPdfTool() {
           name: file.name,
           mimeType: file.type,
           buffer: await file.arrayBuffer(),
-        }))
+        })),
       );
 
       const worker = createPdfOperationWorker();
@@ -93,7 +103,7 @@ export function ScanToPdfTool() {
           pageSize: "a4",
           orientation: "auto",
           margin: "small",
-        }
+        },
       });
 
       if (result.kind === "file") {
@@ -128,11 +138,17 @@ export function ScanToPdfTool() {
       className="w-full"
     >
       {isProcessing ? (
-        <Loader2 className="animate-spin" data-icon="inline-start" aria-hidden />
+        <Loader2
+          className="animate-spin"
+          data-icon="inline-start"
+          aria-hidden
+        />
       ) : (
         <FileImage data-icon="inline-start" aria-hidden />
       )}
-      {isProcessing ? "Generando PDF" : `Convertir ${images.length} fotos a PDF`}
+      {isProcessing
+        ? "Generando PDF"
+        : `Convertir ${images.length} fotos a PDF`}
     </Button>
   );
 
@@ -142,7 +158,7 @@ export function ScanToPdfTool() {
       multiple={true}
       hasContent={stream !== null || images.length > 0}
       isProcessing={isProcessing}
-      onFilesSelected={(files) => setImages(prev => [...prev, ...files])}
+      onFilesSelected={(files) => setImages((prev) => [...prev, ...files])}
       emptyTitle="Escanear con Cámara"
       emptyDescription="Toma fotos con tu cámara y conviértelas en un solo documento PDF."
       emptyActionLabel="Abrir Cámara"
@@ -151,37 +167,47 @@ export function ScanToPdfTool() {
         <div className="flex h-full flex-col gap-4 overflow-hidden">
           {stream ? (
             <div className="relative flex-1 bg-black rounded-xl overflow-hidden shadow-sm border border-border/50 group">
-              <video 
-                ref={videoRef} 
-                autoPlay 
-                playsInline 
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
                 className="w-full h-full object-cover"
               />
               <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-4">
                 <Button variant="destructive" onClick={stopCamera}>
                   Cerrar
                 </Button>
-                <Button size="lg" variant="default" onClick={captureImage} className="rounded-full h-14 w-14 p-0">
+                <Button
+                  size="lg"
+                  variant="default"
+                  onClick={captureImage}
+                  className="rounded-full h-14 w-14 p-0"
+                >
                   <Camera className="size-6" />
                 </Button>
               </div>
             </div>
           ) : (
             <div className="flex-1 border rounded-xl flex items-center justify-center bg-card text-muted-foreground flex-col gap-4">
-               <Camera className="size-12 opacity-50" />
-               <p>Cámara apagada</p>
-               <Button onClick={startCamera}>
-                 Reanudar cámara
-               </Button>
+              <Camera className="size-12 opacity-50" />
+              <p>Cámara apagada</p>
+              <Button onClick={startCamera}>Reanudar cámara</Button>
             </div>
           )}
-          
+
           {images.length > 0 && (
             <div className="h-32 shrink-0 border rounded-xl bg-card p-3 flex gap-3 overflow-x-auto">
               {images.map((img, idx) => (
-                <div key={idx} className="relative h-full shrink-0 aspect-[3/4] border rounded-md overflow-hidden group">
-                  <img src={URL.createObjectURL(img)} alt={`Scan ${idx+1}`} className="w-full h-full object-cover" />
-                  <button 
+                <div
+                  key={idx}
+                  className="relative h-full shrink-0 aspect-[3/4] border rounded-md overflow-hidden group"
+                >
+                  <img
+                    src={URL.createObjectURL(img)}
+                    alt={`Scan ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <button
                     onClick={() => removeImage(idx)}
                     className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                   >
@@ -208,7 +234,11 @@ export function ScanToPdfTool() {
       }
       primaryAction={primaryAction}
       errorMessage={errorMessage}
-      resultBanner={downloadResult ? <DownloadReadyBanner downloadResult={downloadResult} /> : null}
+      resultBanner={
+        downloadResult ? (
+          <DownloadReadyBanner downloadResult={downloadResult} />
+        ) : null
+      }
       addMore={stream ? undefined : { label: "Subir más imágenes" }}
     />
   );

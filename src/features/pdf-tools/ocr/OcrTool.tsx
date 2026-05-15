@@ -5,7 +5,10 @@ import { createWorker } from "tesseract.js";
 import { Button } from "@/components/ui/button";
 import { ToolWorkspace } from "@/features/pdf-tools/shared/ToolWorkspace";
 import { validateSinglePdfFile } from "@/features/pdf-tools/shared/fileValidation";
-import { loadPdfDocument, renderPdfPageToCanvas } from "@/features/pdf-tools/shared/pdfPreview";
+import {
+  loadPdfDocument,
+  renderPdfPageToCanvas,
+} from "@/features/pdf-tools/shared/pdfPreview";
 import {
   DownloadReadyBanner,
   type DownloadResult,
@@ -15,8 +18,14 @@ export function OcrTool() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(null);
-  const [progress, setProgress] = useState<{ page: number, total: number, status: string } | null>(null);
+  const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(
+    null,
+  );
+  const [progress, setProgress] = useState<{
+    page: number;
+    total: number;
+    status: string;
+  } | null>(null);
   const [extractedText, setExtractedText] = useState<string | null>(null);
   const [copyFeedback, setCopyFeedback] = useState(false);
 
@@ -46,19 +55,32 @@ export function OcrTool() {
     setDownloadResult(null);
 
     try {
-      setProgress({ page: 0, total: 0, status: "Cargando modelo Tesseract (puede tardar un poco la primera vez)..." });
+      setProgress({
+        page: 0,
+        total: 0,
+        status:
+          "Cargando modelo Tesseract (puede tardar un poco la primera vez)...",
+      });
       const worker = await createWorker("spa+eng");
-      
+
       const pdf = await loadPdfDocument(selectedFile);
-      setProgress({ page: 0, total: pdf.numPages, status: "Preparando páginas..." });
-      
+      setProgress({
+        page: 0,
+        total: pdf.numPages,
+        status: "Preparando páginas...",
+      });
+
       let finalString = "";
 
       for (let i = 1; i <= pdf.numPages; i++) {
-        setProgress({ page: i, total: pdf.numPages, status: "Renderizando página a imagen..." });
-        
+        setProgress({
+          page: i,
+          total: pdf.numPages,
+          status: "Renderizando página a imagen...",
+        });
+
         const canvas = document.createElement("canvas");
-        
+
         // Render at a decent scale for OCR, e.g. targetWidth 1600
         const renderHandle = renderPdfPageToCanvas({
           pdf,
@@ -69,18 +91,26 @@ export function OcrTool() {
 
         await renderHandle.promise;
 
-        setProgress({ page: i, total: pdf.numPages, status: "Ejecutando OCR (esto puede tardar unos segundos)..." });
-        const { data: { text } } = await worker.recognize(canvas);
-        
+        setProgress({
+          page: i,
+          total: pdf.numPages,
+          status: "Ejecutando OCR (esto puede tardar unos segundos)...",
+        });
+        const {
+          data: { text },
+        } = await worker.recognize(canvas);
+
         finalString += `--- Página ${i} ---\n${text}\n\n`;
       }
 
       await worker.terminate();
 
-      const blob = new Blob([finalString], { type: "text/plain;charset=utf-8" });
+      const blob = new Blob([finalString], {
+        type: "text/plain;charset=utf-8",
+      });
       const url = URL.createObjectURL(blob);
       const fileName = selectedFile.name.replace(/\.pdf$/i, "") + "-ocr.txt";
-      
+
       setExtractedText(finalString);
       setDownloadResult({
         url,
@@ -119,7 +149,11 @@ export function OcrTool() {
       className="w-full"
     >
       {isProcessing ? (
-        <Loader2 className="animate-spin" data-icon="inline-start" aria-hidden />
+        <Loader2
+          className="animate-spin"
+          data-icon="inline-start"
+          aria-hidden
+        />
       ) : (
         <ScanText data-icon="inline-start" aria-hidden />
       )}
@@ -142,16 +176,24 @@ export function OcrTool() {
           extractedText ? (
             <div className="flex h-full flex-col bg-card rounded-xl border overflow-hidden">
               <div className="shrink-0 border-b border-border flex items-center justify-between px-4 py-2">
-                <span className="text-xs font-medium text-muted-foreground">{selectedFile.name} — Texto extraído</span>
+                <span className="text-xs font-medium text-muted-foreground">
+                  {selectedFile.name} — Texto extraído
+                </span>
                 <button
                   type="button"
                   onClick={handleCopyText}
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {copyFeedback ? (
-                    <><Check className="size-3.5" aria-hidden /><span>Copiado</span></>
+                    <>
+                      <Check className="size-3.5" aria-hidden />
+                      <span>Copiado</span>
+                    </>
                   ) : (
-                    <><Copy className="size-3.5" aria-hidden /><span>Copiar</span></>
+                    <>
+                      <Copy className="size-3.5" aria-hidden />
+                      <span>Copiar</span>
+                    </>
                   )}
                 </button>
               </div>
@@ -162,19 +204,27 @@ export function OcrTool() {
           ) : (
             <div className="flex h-full items-center justify-center bg-card rounded-xl border flex-col gap-4 text-muted-foreground p-8 text-center">
               {isProcessing ? (
-                 <Loader2 className="size-16 animate-spin text-brand opacity-80" />
+                <Loader2 className="size-16 animate-spin text-brand opacity-80" />
               ) : (
-                 <ScanText className="size-16 opacity-50" />
+                <ScanText className="size-16 opacity-50" />
               )}
               <div>
-                <p className="font-medium text-foreground">{selectedFile.name}</p>
+                <p className="font-medium text-foreground">
+                  {selectedFile.name}
+                </p>
                 {progress ? (
                   <div className="mt-2 text-sm text-brand">
                     <p>{progress.status}</p>
-                    {progress.total > 0 && <p className="font-mono mt-1 text-xs">Página {progress.page} / {progress.total}</p>}
+                    {progress.total > 0 && (
+                      <p className="font-mono mt-1 text-xs">
+                        Página {progress.page} / {progress.total}
+                      </p>
+                    )}
                   </div>
                 ) : (
-                  <p className="text-sm mt-1">Listo para extraer texto de imágenes escaneadas.</p>
+                  <p className="text-sm mt-1">
+                    Listo para extraer texto de imágenes escaneadas.
+                  </p>
                 )}
               </div>
             </div>
@@ -187,13 +237,23 @@ export function OcrTool() {
       sidebarDescription="Utiliza IA local (Tesseract.js) para extraer texto de imágenes o PDFs que no tienen texto seleccionable."
       sidebar={
         <div className="text-sm text-muted-foreground flex flex-col gap-2">
-           <p>El motor analizará los pixeles de cada página para encontrar letras y palabras. El resultado se descargará como `.txt`.</p>
-           <p><strong>Nota importante:</strong> Esto puede consumir mucha batería y procesador porque se ejecuta directamente en tu dispositivo.</p>
+          <p>
+            El motor analizará los pixeles de cada página para encontrar letras
+            y palabras. El resultado se descargará como `.txt`.
+          </p>
+          <p>
+            <strong>Nota importante:</strong> Esto puede consumir mucha batería
+            y procesador porque se ejecuta directamente en tu dispositivo.
+          </p>
         </div>
       }
       primaryAction={primaryAction}
       errorMessage={errorMessage}
-      resultBanner={downloadResult ? <DownloadReadyBanner downloadResult={downloadResult} /> : null}
+      resultBanner={
+        downloadResult ? (
+          <DownloadReadyBanner downloadResult={downloadResult} />
+        ) : null
+      }
     />
   );
 }

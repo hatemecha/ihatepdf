@@ -36,3 +36,4 @@ pnpm-debug.log*
 .env.production.local
 
 inspo
+errors*.txt
