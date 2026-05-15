@@ -5,6 +5,8 @@ dist-ssr
 
 # Vite + PWA generated assets
 dev-dist
+test-results
+tmp-tests
 .playwright-mcp
 .omx
 

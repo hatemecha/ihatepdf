@@ -15,6 +15,7 @@ import type {
   ProtectPdfOptions,
   WatermarkOptions,
 } from "./pdfOperation.types";
+import { getPageNumberStandardFont } from "./pageNumberFonts";
 
 const workerContext = self as unknown as DedicatedWorkerGlobalScope;
 const PDF_MIME_TYPE = "application/pdf";
@@ -178,7 +179,9 @@ async function numberPages(
   options: PageNumberOptions,
 ): Promise<PdfOperationResult> {
   const outputDocument = await loadPdf(file);
-  const font = await outputDocument.embedFont(StandardFonts.Helvetica);
+  const font = await outputDocument.embedFont(
+    getPageNumberStandardFont(options.font),
+  );
   const fontSize = clamp(options.fontSize, 8, 48);
   const startAt = Math.max(1, Math.floor(options.startAt));
 

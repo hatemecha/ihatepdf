@@ -4,7 +4,6 @@ import {
   ArrowRight,
   CheckSquare,
   CopyMinus,
-  Download,
   ListOrdered,
   Loader2,
   RotateCcw,
@@ -13,8 +12,11 @@ import {
   Trash2,
 } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  DownloadReadyBanner,
+  type DownloadResult,
+} from "@/features/pdf-tools/shared/DownloadReadyBanner";
 import { cn } from "@/lib/utils";
 import {
   PdfDocumentPreview,
@@ -25,6 +27,12 @@ import {
   formatFileSize,
   validateSinglePdfFile,
 } from "@/features/pdf-tools/shared/fileValidation";
+import {
+  formatPageRangeHint,
+  formatPagesAsRange,
+  parsePageOrder,
+  parsePageRange,
+} from "@/features/pdf-tools/shared/pageRanges";
 import { getPdfPageCount } from "@/features/pdf-tools/shared/pdfPreview";
 import {
   createPdfOperationWorker,
@@ -53,12 +61,6 @@ interface SinglePdfOperationConfig {
   actionLabel: string;
   processingLabel: string;
   actionIcon: typeof Scissors;
-}
-
-interface DownloadResult {
-  url: string;
-  fileName: string;
-  mimeType: string;
 }
 
 const OPERATION_CONFIGS: Record<SinglePdfOperation, SinglePdfOperationConfig> =
@@ -165,6 +167,10 @@ function useSinglePdfOperationTool({ config }: SinglePdfOperationToolProps) {
   const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(
     null,
   );
+  const [pageRangeInput, setPageRangeInput] = useState("");
+  const [pageRangeError, setPageRangeError] = useState<string | null>(null);
+  const [pageOrderInput, setPageOrderInput] = useState("");
+  const [pageOrderError, setPageOrderError] = useState<string | null>(null);
 
   const hasContent = Boolean(selectedFile && pageCount > 0);
 
@@ -210,6 +216,10 @@ function useSinglePdfOperationTool({ config }: SinglePdfOperationToolProps) {
     setPageCount(nextPageCount);
     setSelectedPages(new Set());
     setPageOrder(createInitialPageOrder(nextPageCount));
+    setPageRangeInput("");
+    setPageRangeError(null);
+    setPageOrderInput("");
+    setPageOrderError(null);
   }
 
   async function handleFilesSelected(files: File[]) {
@@ -252,6 +262,11 @@ function useSinglePdfOperationTool({ config }: SinglePdfOperationToolProps) {
     clearDownloadResult();
   }
 
+  function syncPageRangeInput(nextSelection: Set<number>) {
+    setPageRangeInput(formatPagesAsRange(Array.from(nextSelection)));
+    setPageRangeError(null);
+  }
+
   function togglePage(pageNumber: number) {
     setSelectedPages((current) => {
       const next = new Set(current);
@@ -260,6 +275,7 @@ function useSinglePdfOperationTool({ config }: SinglePdfOperationToolProps) {
       } else {
         next.add(pageNumber);
       }
+      syncPageRangeInput(next);
       return next;
     });
     setErrorMessage(null);
@@ -267,13 +283,17 @@ function useSinglePdfOperationTool({ config }: SinglePdfOperationToolProps) {
   }
 
   const selectAll = useCallback(() => {
-    setSelectedPages(new Set(createInitialPageOrder(pageCount)));
+    const next = new Set(createInitialPageOrder(pageCount));
+    setSelectedPages(next);
+    syncPageRangeInput(next);
     setErrorMessage(null);
     clearDownloadResult();
   }, [clearDownloadResult, pageCount]);
 
   const clearSelection = useCallback(() => {
     setSelectedPages(new Set());
+    setPageRangeInput("");
+    setPageRangeError(null);
     setErrorMessage(null);
     clearDownloadResult();
   }, [clearDownloadResult]);
@@ -286,11 +306,53 @@ function useSinglePdfOperationTool({ config }: SinglePdfOperationToolProps) {
           next.add(pageNumber);
         }
       }
+      syncPageRangeInput(next);
       return next;
     });
     setErrorMessage(null);
     clearDownloadResult();
   }, [clearDownloadResult, pageCount]);
+
+  function applyPageRange() {
+    const result = parsePageRange(pageRangeInput, pageCount);
+    if (!result.isValid) {
+      setPageRangeError(result.error ?? "Rango de páginas no válido.");
+      return;
+    }
+
+    const nextSelection = new Set(
+      result.pages.map((pageIndex) => pageIndex + 1),
+    );
+    setSelectedPages(nextSelection);
+    setPageRangeInput(formatPagesAsRange(Array.from(nextSelection)));
+    setPageRangeError(null);
+    setErrorMessage(null);
+    clearDownloadResult();
+  }
+
+  function applyPageOrder() {
+    const result = parsePageOrder(pageOrderInput, pageCount);
+    if (!result.isValid) {
+      setPageOrderError(result.error ?? "Orden de páginas no válido.");
+      return;
+    }
+
+    setPageOrder(result.pages.map((pageIndex) => pageIndex + 1));
+    setPageOrderError(null);
+    setErrorMessage(null);
+    clearDownloadResult();
+  }
+
+  const handlePageReorder = useCallback(
+    (nextOrder: number[]) => {
+      setPageOrder(nextOrder);
+      setPageOrderInput(nextOrder.join(","));
+      setPageOrderError(null);
+      setErrorMessage(null);
+      clearDownloadResult();
+    },
+    [clearDownloadResult],
+  );
 
   const movePageInOrder = useCallback(
     (pageNumber: number, direction: -1 | 1) => {
@@ -303,8 +365,10 @@ function useSinglePdfOperationTool({ config }: SinglePdfOperationToolProps) {
         const next = [...current];
         const [moved] = next.splice(currentIndex, 1);
         next.splice(nextIndex, 0, moved);
+        setPageOrderInput(next.join(","));
         return next;
       });
+      setPageOrderError(null);
       setErrorMessage(null);
       clearDownloadResult();
     },
@@ -312,7 +376,10 @@ function useSinglePdfOperationTool({ config }: SinglePdfOperationToolProps) {
   );
 
   function resetOrder() {
-    setPageOrder(createInitialPageOrder(pageCount));
+    const initialOrder = createInitialPageOrder(pageCount);
+    setPageOrder(initialOrder);
+    setPageOrderInput(initialOrder.join(","));
+    setPageOrderError(null);
     setErrorMessage(null);
     clearDownloadResult();
   }
@@ -499,6 +566,9 @@ function useSinglePdfOperationTool({ config }: SinglePdfOperationToolProps) {
       displayMode={previewProps.mode}
       pageLabels={pageLabels}
       onPageClick={previewProps.interactive ? togglePage : undefined}
+      onPageReorder={
+        config.operation === "reorder-pages" ? handlePageReorder : undefined
+      }
       pageActionsByPage={pageActionsByPage}
     />
   ) : (
@@ -517,14 +587,27 @@ function useSinglePdfOperationTool({ config }: SinglePdfOperationToolProps) {
 
       {config.operation !== "split-pdf" &&
       config.operation !== "reorder-pages" ? (
-        <SelectionControls
-          selectedCount={selectedPages.size}
-          totalCount={pageCount}
-          onSelectAll={selectAll}
-          onClear={clearSelection}
-          onInvert={invertSelection}
-          intent={config.operation === "delete-pages" ? "deletion" : "selected"}
-        />
+        <>
+          <PageRangeField
+            operation={config.operation}
+            pageCount={pageCount}
+            value={pageRangeInput}
+            error={pageRangeError}
+            isProcessing={isProcessing}
+            onChange={setPageRangeInput}
+            onApply={applyPageRange}
+          />
+          <SelectionControls
+            selectedCount={selectedPages.size}
+            totalCount={pageCount}
+            onSelectAll={selectAll}
+            onClear={clearSelection}
+            onInvert={invertSelection}
+            intent={
+              config.operation === "delete-pages" ? "deletion" : "selected"
+            }
+          />
+        </>
       ) : null}
 
       {config.operation === "rotate-pages" ? (
@@ -550,11 +633,19 @@ function useSinglePdfOperationTool({ config }: SinglePdfOperationToolProps) {
       ) : null}
 
       {config.operation === "reorder-pages" ? (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-3">
           <p className="text-sm text-muted-foreground">
-            Usa las flechas debajo de cada página para reordenarlas. El número
-            grande es la posición final.
+            Arrastra la vista previa de cada página o usa las flechas debajo. El
+            número grande es la posición final.
           </p>
+          <PageOrderField
+            pageCount={pageCount}
+            value={pageOrderInput}
+            error={pageOrderError}
+            isProcessing={isProcessing}
+            onChange={setPageOrderInput}
+            onApply={applyPageOrder}
+          />
           <Button
             type="button"
             variant="outline"
@@ -613,21 +704,7 @@ function useSinglePdfOperationTool({ config }: SinglePdfOperationToolProps) {
   );
 
   const resultBanner = downloadResult ? (
-    <Alert variant="brand" role="status">
-      <Download />
-      <AlertTitle>Archivo listo</AlertTitle>
-      <AlertDescription>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <span>La operación terminó correctamente.</span>
-          <Button asChild variant="brand" size="sm">
-            <a href={downloadResult.url} download={downloadResult.fileName}>
-              <Download data-icon="inline-start" aria-hidden />
-              Descargar
-            </a>
-          </Button>
-        </div>
-      </AlertDescription>
-    </Alert>
+    <DownloadReadyBanner downloadResult={downloadResult} />
   ) : null;
 
   return (
@@ -775,5 +852,107 @@ function SelectionControls({
         </Button>
       </div>
     </div>
+  );
+}
+
+interface PageRangeFieldProps {
+  operation: "extract-pages" | "delete-pages" | "rotate-pages";
+  pageCount: number;
+  value: string;
+  error: string | null;
+  isProcessing: boolean;
+  onChange: (value: string) => void;
+  onApply: () => void;
+}
+
+function PageRangeField({
+  operation,
+  pageCount,
+  value,
+  error,
+  isProcessing,
+  onChange,
+  onApply,
+}: PageRangeFieldProps) {
+  const label =
+    operation === "extract-pages"
+      ? "Páginas a extraer"
+      : operation === "delete-pages"
+        ? "Páginas a eliminar"
+        : "Páginas a rotar";
+
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="text-sm font-medium">{label}</legend>
+      <input
+        type="text"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={formatPageRangeHint(pageCount)}
+        className="field-input h-9 rounded-md px-2.5 text-sm text-foreground"
+        aria-label={label}
+        disabled={isProcessing}
+      />
+      <p className="text-xs text-muted-foreground">
+        Ejemplos: <code>1,3,5</code> · <code>2-6</code> · <code>all</code>
+      </p>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onApply}
+        disabled={isProcessing}
+      >
+        Aplicar rango
+      </Button>
+    </fieldset>
+  );
+}
+
+interface PageOrderFieldProps {
+  pageCount: number;
+  value: string;
+  error: string | null;
+  isProcessing: boolean;
+  onChange: (value: string) => void;
+  onApply: () => void;
+}
+
+function PageOrderField({
+  pageCount,
+  value,
+  error,
+  isProcessing,
+  onChange,
+  onApply,
+}: PageOrderFieldProps) {
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="text-sm font-medium">Orden por texto</legend>
+      <input
+        type="text"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={formatPageRangeHint(pageCount)}
+        className="field-input h-9 rounded-md px-2.5 text-sm text-foreground"
+        aria-label="Orden de páginas"
+        disabled={isProcessing}
+      />
+      <p className="text-xs text-muted-foreground">
+        Escribe las {pageCount} páginas separadas por coma, por ejemplo{" "}
+        <code>3,1,2</code>.
+      </p>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onApply}
+        disabled={isProcessing}
+      >
+        Aplicar orden
+      </Button>
+    </fieldset>
   );
 }

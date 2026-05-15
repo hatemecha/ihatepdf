@@ -24,6 +24,10 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  DownloadReadyBanner,
+  type DownloadResult,
+} from "@/features/pdf-tools/shared/DownloadReadyBanner";
 import { cn } from "@/lib/utils";
 
 import {
@@ -48,11 +52,6 @@ import {
   type PagePresetId,
 } from "./layoutTypes";
 import { useLayoutEditor } from "./useLayoutEditor";
-
-interface DownloadResult {
-  url: string;
-  fileName: string;
-}
 
 export interface ImageToPdfLayoutImageImport {
   token: number;
@@ -532,25 +531,7 @@ function useImageToPdfLayoutEditor({
       </div>
 
       {downloadResult ? (
-        <Alert
-          variant="brand"
-          role="status"
-          className="mt-3 max-h-36 shrink-0 overflow-y-auto"
-        >
-          <Download />
-          <AlertTitle>PDF listo</AlertTitle>
-          <AlertDescription>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <span>El layout se exportó correctamente.</span>
-              <Button asChild variant="brand" size="sm">
-                <a href={downloadResult.url} download={downloadResult.fileName}>
-                  <Download data-icon="inline-start" aria-hidden />
-                  Descargar PDF
-                </a>
-              </Button>
-            </div>
-          </AlertDescription>
-        </Alert>
+        <DownloadReadyBanner downloadResult={downloadResult} />
       ) : null}
     </section>
   );

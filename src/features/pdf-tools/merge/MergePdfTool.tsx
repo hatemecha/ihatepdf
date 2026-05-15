@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Combine,
-  Download,
-  Loader2,
-  Trash2,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Combine, Loader2, Trash2 } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  DownloadReadyBanner,
+  type DownloadResult,
+} from "@/features/pdf-tools/shared/DownloadReadyBanner";
 import { PdfFirstPageThumbnail } from "@/features/pdf-tools/shared/PdfFirstPageThumbnail";
 import { ToolWorkspace } from "@/features/pdf-tools/shared/ToolWorkspace";
 import {
@@ -50,7 +46,9 @@ function useMergePdfTool() {
 
   const [selectedFiles, setSelectedFiles] = useState<SelectedPdfFile[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(
+    null,
+  );
   const [isProcessing, setIsProcessing] = useState(false);
 
   const totalSize = useMemo(
@@ -63,16 +61,16 @@ function useMergePdfTool() {
   );
   const canMerge = selectedFiles.length >= 2 && !isProcessing;
 
-  function replaceResultUrl(nextUrl: string | null) {
+  function replaceDownloadResult(nextResult: DownloadResult | null) {
     if (resultUrlRef.current) {
       URL.revokeObjectURL(resultUrlRef.current);
     }
-    resultUrlRef.current = nextUrl;
-    setResultUrl(nextUrl);
+    resultUrlRef.current = nextResult?.url ?? null;
+    setDownloadResult(nextResult);
   }
 
   function clearResult() {
-    replaceResultUrl(null);
+    replaceDownloadResult(null);
   }
 
   function updateSelectedFiles(nextFiles: SelectedPdfFile[]) {
@@ -174,7 +172,11 @@ function useMergePdfTool() {
         throw new Error("La unión no generó un archivo descargable.");
       }
       const blob = new Blob([result.buffer], { type: "application/pdf" });
-      replaceResultUrl(URL.createObjectURL(blob));
+      replaceDownloadResult({
+        url: URL.createObjectURL(blob),
+        fileName: MERGED_FILE_NAME,
+        mimeType: "application/pdf",
+      });
     } catch (error) {
       const message =
         error instanceof Error
@@ -199,7 +201,7 @@ function useMergePdfTool() {
 
   const preview = (
     <div className="h-full min-h-0 overflow-y-auto pr-1">
-      <ol className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-3 sm:gap-4">
+      <ol className="grid grid-cols-[repeat(auto-fit,minmax(min(220px,100%),300px))] justify-center gap-3 sm:gap-4">
         {selectedFiles.map((item, index) => (
           <li
             key={item.id}
@@ -207,7 +209,9 @@ function useMergePdfTool() {
           >
             <div className="relative">
               <PdfFirstPageThumbnail
+                key={`${item.id}-${item.file.lastModified}`}
                 file={item.file}
+                targetWidth={160}
                 onPageCountResolved={(count) =>
                   handlePageCountResolved(item.id, count)
                 }
@@ -355,22 +359,8 @@ function useMergePdfTool() {
     </>
   );
 
-  const resultBanner = resultUrl ? (
-    <Alert variant="brand" role="status">
-      <Download />
-      <AlertTitle>PDF listo</AlertTitle>
-      <AlertDescription>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <span>El archivo unido está listo para descargar.</span>
-          <Button asChild variant="brand" size="sm">
-            <a href={resultUrl} download={MERGED_FILE_NAME}>
-              <Download data-icon="inline-start" aria-hidden />
-              Descargar
-            </a>
-          </Button>
-        </div>
-      </AlertDescription>
-    </Alert>
+  const resultBanner = downloadResult ? (
+    <DownloadReadyBanner downloadResult={downloadResult} />
   ) : null;
 
   return (

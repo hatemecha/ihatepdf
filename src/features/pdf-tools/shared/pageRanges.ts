@@ -20,6 +20,37 @@ export function formatPageRangeHint(pageCount: number): string {
   return `1-${pageCount}`;
 }
 
+export function formatPagesAsRange(pages: number[]): string {
+  if (pages.length === 0) {
+    return "";
+  }
+
+  const sortedPages = [...pages].toSorted((a, b) => a - b);
+  const ranges: string[] = [];
+  let rangeStart = sortedPages[0];
+  let rangeEnd = sortedPages[0];
+
+  for (let index = 1; index < sortedPages.length; index += 1) {
+    const pageNumber = sortedPages[index];
+    if (pageNumber === rangeEnd + 1) {
+      rangeEnd = pageNumber;
+      continue;
+    }
+
+    ranges.push(
+      rangeStart === rangeEnd ? `${rangeStart}` : `${rangeStart}-${rangeEnd}`,
+    );
+    rangeStart = pageNumber;
+    rangeEnd = pageNumber;
+  }
+
+  ranges.push(
+    rangeStart === rangeEnd ? `${rangeStart}` : `${rangeStart}-${rangeEnd}`,
+  );
+
+  return ranges.join(", ");
+}
+
 export function parsePageRange(
   value: string,
   pageCount: number,

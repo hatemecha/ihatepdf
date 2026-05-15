@@ -1,3 +1,5 @@
+import type { PageNumberFontId } from "@/features/pdf-tools/shared/pageNumberFonts";
+
 export interface PdfInputFile {
   name: string;
   buffer: ArrayBuffer;
@@ -55,6 +57,7 @@ export interface PageNumberOptions {
   fontSize: number;
   position: PageNumberPosition;
   margin: number;
+  font: PageNumberFontId;
 }
 
 export interface CropMargins {

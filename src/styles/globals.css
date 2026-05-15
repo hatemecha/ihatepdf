@@ -3,6 +3,7 @@
 
 @import "./tokens.css";
 @import "./utilities.css";
+@import "./pdf-preview-overlays.css";
 
 @custom-variant dark (&:is(.dark *));
 

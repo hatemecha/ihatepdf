@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatPageRangeHint,
+  formatPagesAsRange,
   parsePageOrder,
   parsePageRange,
 } from "./pageRanges";
@@ -44,5 +45,9 @@ describe("pageRanges", () => {
   it("formats a helpful full-range hint", () => {
     expect(formatPageRangeHint(1)).toBe("1");
     expect(formatPageRangeHint(8)).toBe("1-8");
+  });
+
+  it("formats selected pages as compact ranges", () => {
+    expect(formatPagesAsRange([1, 2, 3, 5, 7, 8])).toBe("1-3, 5, 7-8");
   });
 });

@@ -232,6 +232,60 @@ const TOOLS: Tool[] = [
   },
 ];
 
+const TOOL_SEARCH_SYNONYMS: Record<string, string[]> = {
+  merge: ["unir", "combinar", "juntar"],
+  compress: ["comprimir", "reducir", "optimizar"],
+  split: ["dividir", "separar", "partir"],
+  "extract-pages": ["extraer", "sacar", "copiar"],
+  "delete-pages": ["eliminar", "borrar", "quitar"],
+  reorder: ["reordenar", "ordenar", "mover"],
+  rotate: ["rotar", "girar", "orientacion"],
+  watermark: ["marca", "sello", "estampar"],
+  "page-numbers": ["numerar", "numeracion", "paginas"],
+  protect: ["proteger", "cifrar", "password", "contraseña"],
+  unlock: ["desbloquear", "quitar contraseña"],
+  crop: ["recortar", "margen", "margenes"],
+  "images-to-pdf": ["imagen", "jpg", "png", "foto"],
+  "pdf-to-images": ["exportar", "png", "jpg", "webp"],
+};
+
+function normalizeSearchText(value: string): string {
+  return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+}
+
+function getToolSearchHaystack(tool: Tool): string {
+  const category = TOOL_CATEGORIES.find((item) => item.id === tool.category);
+  const synonyms = TOOL_SEARCH_SYNONYMS[tool.slug] ?? [];
+
+  return normalizeSearchText(
+    [
+      tool.name,
+      tool.description,
+      tool.longDescription ?? "",
+      tool.slug,
+      category?.label ?? "",
+      category?.description ?? "",
+      ...synonyms,
+    ].join(" "),
+  );
+}
+
+export function getAllTools(): Tool[] {
+  return [...TOOLS];
+}
+
+export function searchTools(query: string): Tool[] {
+  const normalizedQuery = normalizeSearchText(query);
+
+  if (!normalizedQuery) {
+    return getAllTools();
+  }
+
+  return TOOLS.filter((tool) =>
+    getToolSearchHaystack(tool).includes(normalizedQuery),
+  );
+}
+
 export function getToolBySlug(slug: string): Tool | undefined {
   return TOOLS.find((tool) => tool.slug === slug);
 }

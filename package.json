@@ -34,6 +34,9 @@
     "generate:brand": "node scripts/generate-brand-assets.mjs"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@pdfsmaller/pdf-decrypt": "^1.0.1",
     "@pdfsmaller/pdf-encrypt": "^1.0.2",
     "@radix-ui/react-slot": "^1.2.4",

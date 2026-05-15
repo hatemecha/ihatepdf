@@ -2,14 +2,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
-  Download,
   ImagePlus,
   Loader2,
   Trash2,
 } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  DownloadReadyBanner,
+  type DownloadResult,
+} from "@/features/pdf-tools/shared/DownloadReadyBanner";
 import { ToolWorkspace } from "@/features/pdf-tools/shared/ToolWorkspace";
 import {
   formatFileSize,
@@ -30,11 +32,6 @@ interface SelectedImageFile {
   id: string;
   file: File;
   previewUrl: string;
-}
-
-interface DownloadResult {
-  url: string;
-  fileName: string;
 }
 
 const DEFAULT_PDF_OPTIONS: ImageToPdfOptions = {
@@ -71,6 +68,69 @@ const MARGIN_OPTIONS: Array<{
   { value: "large", label: "Grande" },
 ];
 
+const PDF_PREVIEW_PAGE_SIZES = {
+  a4: {
+    portrait: { width: 595.28, height: 841.89 },
+    landscape: { width: 841.89, height: 595.28 },
+  },
+  letter: {
+    portrait: { width: 612, height: 792 },
+    landscape: { width: 792, height: 612 },
+  },
+};
+
+const PDF_PREVIEW_MARGINS: Record<ImageToPdfOptions["margin"], number> = {
+  none: 0,
+  small: 18,
+  normal: 36,
+  large: 72,
+};
+
+interface ImageDimensions {
+  width: number;
+  height: number;
+}
+
+function resolveImageToPdfPreviewPage(
+  options: ImageToPdfOptions,
+  dimensions?: ImageDimensions,
+) {
+  const imageWidth = dimensions?.width ?? 595;
+  const imageHeight = dimensions?.height ?? 842;
+  const margin = PDF_PREVIEW_MARGINS[options.margin];
+
+  if (options.pageSize === "image") {
+    return {
+      width: imageWidth + margin * 2,
+      height: imageHeight + margin * 2,
+      margin,
+    };
+  }
+
+  const baseSize =
+    PDF_PREVIEW_PAGE_SIZES[options.pageSize][
+      imageWidth > imageHeight ? "landscape" : "portrait"
+    ];
+  const orientation =
+    options.orientation === "auto"
+      ? imageWidth > imageHeight
+        ? "landscape"
+        : "portrait"
+      : options.orientation;
+
+  return {
+    width:
+      orientation === "landscape"
+        ? Math.max(baseSize.width, baseSize.height)
+        : Math.min(baseSize.width, baseSize.height),
+    height:
+      orientation === "landscape"
+        ? Math.min(baseSize.width, baseSize.height)
+        : Math.max(baseSize.width, baseSize.height),
+    margin,
+  };
+}
+
 function createFileId(file: File): string {
   return `${file.name}-${file.size}-${file.lastModified}-${Math.random()
     .toString(36)
@@ -105,6 +165,9 @@ function useImageToPdfSimpleMode({
   const [isProcessing, setIsProcessing] = useState(false);
   const [pdfOptions, setPdfOptions] =
     useState<ImageToPdfOptions>(DEFAULT_PDF_OPTIONS);
+  const [imageDimensionsById, setImageDimensionsById] = useState<
+    Record<string, ImageDimensions>
+  >({});
 
   const totalSize = useMemo(
     () => getSelectedFilesSize(selectedFiles),
@@ -169,6 +232,11 @@ function useImageToPdfSimpleMode({
     if (removed) {
       URL.revokeObjectURL(removed.previewUrl);
     }
+    setImageDimensionsById((current) => {
+      const remaining = { ...current };
+      delete remaining[fileId];
+      return remaining;
+    });
     updateSelectedFiles(selectedFiles.filter((item) => item.id !== fileId));
   }
 
@@ -190,7 +258,25 @@ function useImageToPdfSimpleMode({
 
   function clearList() {
     disposePreviewUrls(selectedFiles);
+    setImageDimensionsById({});
     updateSelectedFiles([]);
+  }
+
+  function rememberImageDimensions(fileId: string, image: HTMLImageElement) {
+    const dimensions = {
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+    };
+    setImageDimensionsById((current) => {
+      const previous = current[fileId];
+      if (
+        previous?.width === dimensions.width &&
+        previous.height === dimensions.height
+      ) {
+        return current;
+      }
+      return { ...current, [fileId]: dimensions };
+    });
   }
 
   function cancelConversion() {
@@ -261,72 +347,100 @@ function useImageToPdfSimpleMode({
 
   const preview = (
     <div className="h-full min-h-0 overflow-y-auto pr-1">
-      <ol className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 sm:gap-4">
-        {selectedFiles.map((item, index) => (
-          <li
-            key={item.id}
-            className="group flex flex-col gap-2 rounded-lg border border-border bg-card p-2 transition-colors hover:border-foreground/35"
-          >
-            <div className="relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-md bg-white">
-              <img
-                src={item.previewUrl}
-                alt={item.file.name}
-                className="max-h-full max-w-full object-contain"
-              />
-              <span className="absolute left-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-foreground text-background text-xs font-bold shadow">
-                {index + 1}
-              </span>
-            </div>
-            <div className="min-w-0">
-              <p
-                className="truncate text-xs font-medium"
-                title={item.file.name}
-              >
-                {item.file.name}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {formatFileSize(item.file.size)}
-              </p>
-            </div>
-            <div className="flex items-center justify-between gap-1">
-              <div className="flex items-center gap-1">
+      <ol className="grid grid-cols-[repeat(auto-fit,minmax(min(220px,100%),300px))] justify-center gap-3 sm:gap-4">
+        {selectedFiles.map((item, index) => {
+          const page = resolveImageToPdfPreviewPage(
+            pdfOptions,
+            imageDimensionsById[item.id],
+          );
+          const marginStyle = `${(page.margin / page.height) * 100}% ${
+            (page.margin / page.width) * 100
+          }%`;
+
+          return (
+            <li
+              key={item.id}
+              className="group flex flex-col gap-2 rounded-lg border border-border bg-card p-3 transition-colors hover:border-foreground/35"
+            >
+              <div className="relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-md bg-neutral-950/25 p-3">
+                <div
+                  className="relative max-h-full w-full max-w-[240px] overflow-hidden rounded-sm bg-white shadow-xl shadow-black/30 ring-1 ring-white/20"
+                  style={{ aspectRatio: `${page.width} / ${page.height}` }}
+                >
+                  <div className="absolute inset-0 bg-neutral-100" />
+                  <div
+                    className="absolute flex items-center justify-center overflow-hidden"
+                    style={{
+                      inset: marginStyle,
+                    }}
+                  >
+                    <img
+                      src={item.previewUrl}
+                      alt={item.file.name}
+                      className="h-full w-full object-contain"
+                      onLoad={(event) =>
+                        rememberImageDimensions(item.id, event.currentTarget)
+                      }
+                    />
+                  </div>
+                </div>
+                <span className="absolute left-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-foreground text-background text-xs font-bold shadow">
+                  {index + 1}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p
+                  className="truncate text-xs font-medium"
+                  title={item.file.name}
+                >
+                  {item.file.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {formatFileSize(item.file.size)}
+                </p>
+              </div>
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    aria-label={`Mover ${item.file.name} a la izquierda`}
+                    onClick={() => moveFile(item.id, -1)}
+                    disabled={index === 0 || isProcessing}
+                  >
+                    <ArrowLeft className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    aria-label={`Mover ${item.file.name} a la derecha`}
+                    onClick={() => moveFile(item.id, 1)}
+                    disabled={
+                      index === selectedFiles.length - 1 || isProcessing
+                    }
+                  >
+                    <ArrowRight className="size-3.5" />
+                  </Button>
+                </div>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   className="size-7"
-                  aria-label={`Mover ${item.file.name} a la izquierda`}
-                  onClick={() => moveFile(item.id, -1)}
-                  disabled={index === 0 || isProcessing}
+                  aria-label={`Quitar ${item.file.name}`}
+                  onClick={() => removeFile(item.id)}
+                  disabled={isProcessing}
                 >
-                  <ArrowLeft className="size-3.5" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-7"
-                  aria-label={`Mover ${item.file.name} a la derecha`}
-                  onClick={() => moveFile(item.id, 1)}
-                  disabled={index === selectedFiles.length - 1 || isProcessing}
-                >
-                  <ArrowRight className="size-3.5" />
+                  <Trash2 className="size-3.5" />
                 </Button>
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-7"
-                aria-label={`Quitar ${item.file.name}`}
-                onClick={() => removeFile(item.id)}
-                disabled={isProcessing}
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ol>
     </div>
   );
@@ -427,21 +541,7 @@ function useImageToPdfSimpleMode({
   );
 
   const resultBanner = downloadResult ? (
-    <Alert variant="brand" role="status">
-      <Download />
-      <AlertTitle>PDF listo</AlertTitle>
-      <AlertDescription>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <span>Las imágenes se convirtieron correctamente.</span>
-          <Button asChild variant="brand" size="sm">
-            <a href={downloadResult.url} download={downloadResult.fileName}>
-              <Download data-icon="inline-start" aria-hidden />
-              Descargar PDF
-            </a>
-          </Button>
-        </div>
-      </AlertDescription>
-    </Alert>
+    <DownloadReadyBanner downloadResult={downloadResult} />
   ) : null;
 
   return (

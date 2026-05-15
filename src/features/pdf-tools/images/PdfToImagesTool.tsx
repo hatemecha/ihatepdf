@@ -1,15 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import JSZip from "jszip";
-import {
-  CheckSquare,
-  Download,
-  FileImage,
-  Loader2,
-  Square,
-} from "lucide-react";
+import { CheckSquare, FileImage, Loader2, Square } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  DownloadReadyBanner,
+  type DownloadResult,
+} from "@/features/pdf-tools/shared/DownloadReadyBanner";
 import { PdfDocumentPreview } from "@/features/pdf-tools/shared/PdfDocumentPreview";
 import { ToolWorkspace } from "@/features/pdf-tools/shared/ToolWorkspace";
 import {
@@ -17,11 +14,6 @@ import {
   validateSinglePdfFile,
 } from "@/features/pdf-tools/shared/fileValidation";
 import { loadPdfDocument } from "@/features/pdf-tools/shared/pdfPreview";
-
-interface DownloadResult {
-  url: string;
-  fileName: string;
-}
 
 type ImageExportFormat = "png" | "jpg" | "webp";
 
@@ -276,6 +268,7 @@ function usePdfToImagesTool() {
       replaceDownloadResult({
         url,
         fileName: `ihatepdf-pages-as-${formatLabel.toLowerCase()}.zip`,
+        mimeType: "application/zip",
       });
     } catch (error) {
       const message =
@@ -401,24 +394,7 @@ function usePdfToImagesTool() {
   );
 
   const resultBanner = downloadResult ? (
-    <Alert variant="brand" role="status">
-      <Download />
-      <AlertTitle>Imágenes listas</AlertTitle>
-      <AlertDescription>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <span>
-            Las páginas se exportaron como{" "}
-            {getImageExportFormat(exportFormat).label}.
-          </span>
-          <Button asChild variant="brand" size="sm">
-            <a href={downloadResult.url} download={downloadResult.fileName}>
-              <Download data-icon="inline-start" aria-hidden />
-              Descargar ZIP
-            </a>
-          </Button>
-        </div>
-      </AlertDescription>
-    </Alert>
+    <DownloadReadyBanner downloadResult={downloadResult} />
   ) : null;
 
   return (

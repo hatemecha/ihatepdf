@@ -36,7 +36,7 @@ export function SiteFooter() {
           </div>
 
           <p className="text-xs leading-none text-muted-foreground">
-          hatemecha © {COPYRIGHT_YEAR} 
+            hatemecha © {COPYRIGHT_YEAR}
           </p>
         </div>
       </div>

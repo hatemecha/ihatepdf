@@ -1,7 +1,13 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  type CSSProperties,
+} from "react";
 import {
   Crop,
-  Download,
   FileArchive,
   Hash,
   Loader2,
@@ -11,9 +17,15 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { PdfDocumentPreview } from "@/features/pdf-tools/shared/PdfDocumentPreview";
+import {
+  DownloadReadyBanner,
+  type DownloadResult,
+} from "@/features/pdf-tools/shared/DownloadReadyBanner";
+import {
+  PdfFocusedPreview,
+  type PdfFocusedPreviewMetrics,
+} from "@/features/pdf-tools/shared/PdfFocusedPreview";
 import { ToolWorkspace } from "@/features/pdf-tools/shared/ToolWorkspace";
 import {
   formatFileSize,
@@ -30,6 +42,12 @@ import type {
   PdfInputFile,
   PdfOperationRequest,
 } from "@/features/pdf-tools/shared/pdfOperation.types";
+import {
+  DEFAULT_PAGE_NUMBER_FONT,
+  PAGE_NUMBER_FONT_OPTIONS,
+  type PageNumberFontId,
+  getPageNumberPreviewFontStyle,
+} from "@/features/pdf-tools/shared/pageNumberFonts";
 
 export type AdvancedPdfOperation =
   | "compress-pdf"
@@ -49,12 +67,6 @@ interface AdvancedPdfOperationConfig {
   processingLabel: string;
   actionIcon: LucideIcon;
   skipPreviewInspection?: boolean;
-}
-
-interface DownloadResult {
-  url: string;
-  fileName: string;
-  mimeType: string;
 }
 
 interface AdvancedPdfRuntimeState {
@@ -128,6 +140,7 @@ interface PageNumberSettings {
   fontSize: number;
   position: PageNumberPosition;
   margin: number;
+  font: PageNumberFontId;
 }
 
 interface ProtectSettings {
@@ -165,6 +178,7 @@ const DEFAULT_ADVANCED_SETTINGS: AdvancedPdfSettings = {
     fontSize: 12,
     position: "bottom-center",
     margin: 12,
+    font: DEFAULT_PAGE_NUMBER_FONT,
   },
   protect: {
     userPassword: "",
@@ -298,10 +312,6 @@ const POSITION_OPTIONS: Array<{
 
 const MM_TO_POINTS = 72 / 25.4;
 
-function createInitialPageOrder(pageCount: number): number[] {
-  return Array.from({ length: pageCount }, (_, index) => index + 1);
-}
-
 function mmToPoints(value: number): number {
   return Math.max(0, value) * MM_TO_POINTS;
 }
@@ -313,6 +323,146 @@ function createCropMargins(marginsMm: CropMargins): CropMargins {
     bottom: mmToPoints(marginsMm.bottom),
     left: mmToPoints(marginsMm.left),
   };
+}
+
+function clampPreview(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function renderWatermarkPreview(
+  settings: WatermarkSettings,
+  metrics: PdfFocusedPreviewMetrics,
+) {
+  const text = settings.text.trim();
+  if (!text) {
+    return null;
+  }
+
+  return (
+    <div
+      className="pdf-preview-watermark"
+      style={
+        {
+          "--pdf-preview-watermark-font-size": `${clampPreview(settings.fontSize, 12, 120) * metrics.scale}px`,
+          "--pdf-preview-watermark-opacity": clampPreview(
+            settings.opacity / 100,
+            0.05,
+            0.8,
+          ),
+          "--pdf-preview-watermark-rotation": `${settings.rotation}deg`,
+        } as CSSProperties
+      }
+    >
+      {text}
+    </div>
+  );
+}
+
+function renderPageNumberPreview(
+  settings: PageNumberSettings,
+  metrics: PdfFocusedPreviewMetrics,
+) {
+  const label = String(Math.max(1, Math.floor(settings.startAt)));
+  const margin = clampPreview(mmToPoints(settings.margin), 12, 144);
+  const previewFont = getPageNumberPreviewFontStyle(settings.font);
+
+  return (
+    <div
+      className="pdf-preview-page-number"
+      data-position={settings.position}
+      style={
+        {
+          "--pdf-preview-font-size": `${clampPreview(settings.fontSize, 8, 48) * metrics.scale}px`,
+          "--pdf-preview-margin": `${margin * metrics.scale}px`,
+          fontFamily: previewFont.fontFamily,
+          fontWeight: previewFont.fontWeight,
+          fontStyle: previewFont.fontStyle,
+        } as CSSProperties
+      }
+    >
+      {label}
+    </div>
+  );
+}
+
+function renderCropPreview(
+  marginsMm: CropMargins,
+  metrics: PdfFocusedPreviewMetrics,
+) {
+  const margins = createCropMargins(marginsMm);
+  const pageWidth = metrics.pageWidth * metrics.scale;
+  const pageHeight = metrics.pageHeight * metrics.scale;
+  const minVisibleSize = 36 * metrics.scale;
+  const maxHorizontalCrop = Math.max(0, pageWidth - minVisibleSize);
+  const maxVerticalCrop = Math.max(0, pageHeight - minVisibleSize);
+  const left = clampPreview(margins.left * metrics.scale, 0, maxHorizontalCrop);
+  const right = clampPreview(
+    margins.right * metrics.scale,
+    0,
+    Math.max(0, maxHorizontalCrop - left),
+  );
+  const top = clampPreview(margins.top * metrics.scale, 0, maxVerticalCrop);
+  const bottom = clampPreview(
+    margins.bottom * metrics.scale,
+    0,
+    Math.max(0, maxVerticalCrop - top),
+  );
+
+  if (left + right + top + bottom <= 0) {
+    return null;
+  }
+
+  return (
+    <>
+      {top > 0 ? (
+        <div
+          className="pointer-events-none absolute left-0 top-0 bg-brand/20"
+          style={{ width: "100%", height: top }}
+        />
+      ) : null}
+      {bottom > 0 ? (
+        <div
+          className="pointer-events-none absolute bottom-0 left-0 bg-brand/20"
+          style={{ width: "100%", height: bottom }}
+        />
+      ) : null}
+      {left > 0 ? (
+        <div
+          className="pointer-events-none absolute left-0 bg-brand/20"
+          style={{ top, bottom, width: left }}
+        />
+      ) : null}
+      {right > 0 ? (
+        <div
+          className="pointer-events-none absolute right-0 bg-brand/20"
+          style={{ top, bottom, width: right }}
+        />
+      ) : null}
+      <div
+        className="pointer-events-none absolute border-2 border-brand shadow-[0_0_0_1px_rgba(255,255,255,0.75)]"
+        style={{ left, right, top, bottom }}
+      />
+    </>
+  );
+}
+
+function renderAdvancedPdfPreviewOverlay(
+  operation: AdvancedPdfOperation,
+  settings: AdvancedPdfSettings,
+  metrics: PdfFocusedPreviewMetrics,
+) {
+  switch (operation) {
+    case "watermark-pdf":
+      return renderWatermarkPreview(settings.watermark, metrics);
+    case "number-pages":
+      return renderPageNumberPreview(settings.pageNumbers, metrics);
+    case "crop-pdf":
+      return renderCropPreview(settings.cropMarginsMm, metrics);
+    case "compress-pdf":
+    case "protect-pdf":
+    case "unlock-pdf":
+      return null;
+  }
 }
 
 export function getAdvancedPdfOperationConfig(
@@ -487,6 +637,7 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
             fontSize: settings.pageNumbers.fontSize,
             position: settings.pageNumbers.position,
             margin: mmToPoints(settings.pageNumbers.margin),
+            font: settings.pageNumbers.font,
           },
         };
       case "protect-pdf":
@@ -577,10 +728,12 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
 
   const preview =
     selectedFile && pageCount > 0 && !config.skipPreviewInspection ? (
-      <PdfDocumentPreview
+      <PdfFocusedPreview
         file={selectedFile}
-        pageOrder={createInitialPageOrder(pageCount)}
-        displayMode="neutral"
+        pageLabel={pageCount > 1 ? `Página 1 de ${pageCount}` : "Página 1"}
+        overlay={(metrics) =>
+          renderAdvancedPdfPreviewOverlay(config.operation, settings, metrics)
+        }
       />
     ) : (
       <FileOnlyPreview
@@ -613,7 +766,7 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
   );
 
   const resultBanner = downloadResult ? (
-    <DownloadBanner downloadResult={downloadResult} />
+    <DownloadReadyBanner downloadResult={downloadResult} />
   ) : null;
 
   return {
@@ -715,6 +868,7 @@ function AdvancedPdfSidebar({
           fontSize={settings.pageNumbers.fontSize}
           margin={settings.pageNumbers.margin}
           position={settings.pageNumbers.position}
+          font={settings.pageNumbers.font}
           onStartAtChange={(startAt) =>
             onUpdateSettings({ type: "pageNumbers", patch: { startAt } })
           }
@@ -726,6 +880,9 @@ function AdvancedPdfSidebar({
           }
           onPositionChange={(position) =>
             onUpdateSettings({ type: "pageNumbers", patch: { position } })
+          }
+          onFontChange={(font) =>
+            onUpdateSettings({ type: "pageNumbers", patch: { font } })
           }
         />
       ) : null}
@@ -825,30 +982,6 @@ function AdvancedPdfActions({
         </Button>
       ) : null}
     </>
-  );
-}
-
-interface DownloadBannerProps {
-  downloadResult: DownloadResult;
-}
-
-function DownloadBanner({ downloadResult }: DownloadBannerProps) {
-  return (
-    <Alert variant="brand" role="status">
-      <Download />
-      <AlertTitle>Archivo listo</AlertTitle>
-      <AlertDescription>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <span>La operación terminó correctamente.</span>
-          <Button asChild variant="brand" size="sm">
-            <a href={downloadResult.url} download={downloadResult.fileName}>
-              <Download data-icon="inline-start" aria-hidden />
-              Descargar
-            </a>
-          </Button>
-        </div>
-      </AlertDescription>
-    </Alert>
   );
 }
 
@@ -960,10 +1093,12 @@ interface NumberPageControlsProps {
   fontSize: number;
   margin: number;
   position: PageNumberPosition;
+  font: PageNumberFontId;
   onStartAtChange: (value: number) => void;
   onFontSizeChange: (value: number) => void;
   onMarginChange: (value: number) => void;
   onPositionChange: (value: PageNumberPosition) => void;
+  onFontChange: (value: PageNumberFontId) => void;
 }
 
 function NumberPageControls({
@@ -971,10 +1106,12 @@ function NumberPageControls({
   fontSize,
   margin,
   position,
+  font,
   onStartAtChange,
   onFontSizeChange,
   onMarginChange,
   onPositionChange,
+  onFontChange,
 }: NumberPageControlsProps) {
   return (
     <div className="flex flex-col gap-3">
@@ -992,6 +1129,22 @@ function NumberPageControls({
         max={48}
         onChange={onFontSizeChange}
       />
+      <label className="flex flex-col gap-1.5 text-sm font-medium">
+        Fuente
+        <select
+          value={font}
+          onChange={(event) =>
+            onFontChange(event.target.value as PageNumberFontId)
+          }
+          className="h-9 rounded-md border border-border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {PAGE_NUMBER_FONT_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
       <NumberField
         label="Margen (mm)"
         value={margin}
