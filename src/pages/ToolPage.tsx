@@ -4,6 +4,10 @@ import { Link, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import {
+  AdvancedPdfTool,
+  getAdvancedPdfOperationConfig,
+} from "@/features/pdf-tools/document/AdvancedPdfTool";
+import {
   getSinglePdfOperationConfig,
   SinglePdfOperationTool,
 } from "@/features/pdf-tools/document/SinglePdfOperationTool";
@@ -80,6 +84,16 @@ export function ToolPage() {
       <ToolHeader tool={tool} actions={headerActions} />
       <div className="container-tool min-h-0 flex-1 overflow-hidden pb-4 pt-3">
         {tool.implementation === "merge-pdfs" ? <MergePdfTool /> : null}
+        {tool.implementation === "compress-pdf" ||
+        tool.implementation === "watermark-pdf" ||
+        tool.implementation === "number-pages" ||
+        tool.implementation === "protect-pdf" ||
+        tool.implementation === "unlock-pdf" ||
+        tool.implementation === "crop-pdf" ? (
+          <AdvancedPdfTool
+            config={getAdvancedPdfOperationConfig(tool.implementation)}
+          />
+        ) : null}
         {tool.implementation === "split-pdf" ||
         tool.implementation === "extract-pages" ||
         tool.implementation === "delete-pages" ||

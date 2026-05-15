@@ -19,7 +19,12 @@ import {
   createPdfOperationWorker,
   runPdfOperation,
 } from "@/features/pdf-tools/shared/pdfOperationClient";
-import type { ImageInputFile } from "@/features/pdf-tools/shared/pdfOperation.types";
+import type {
+  ImageInputFile,
+  ImageToPdfOptions,
+} from "@/features/pdf-tools/shared/pdfOperation.types";
+
+import { toPdfImageInputFile } from "./imageFileConversion";
 
 interface SelectedImageFile {
   id: string;
@@ -31,6 +36,40 @@ interface DownloadResult {
   url: string;
   fileName: string;
 }
+
+const DEFAULT_PDF_OPTIONS: ImageToPdfOptions = {
+  pageSize: "a4",
+  orientation: "auto",
+  margin: "normal",
+};
+
+const PAGE_SIZE_OPTIONS: Array<{
+  value: ImageToPdfOptions["pageSize"];
+  label: string;
+}> = [
+  { value: "a4", label: "A4" },
+  { value: "letter", label: "Carta" },
+  { value: "image", label: "Imagen" },
+];
+
+const ORIENTATION_OPTIONS: Array<{
+  value: ImageToPdfOptions["orientation"];
+  label: string;
+}> = [
+  { value: "auto", label: "Auto" },
+  { value: "portrait", label: "Vertical" },
+  { value: "landscape", label: "Horizontal" },
+];
+
+const MARGIN_OPTIONS: Array<{
+  value: ImageToPdfOptions["margin"];
+  label: string;
+}> = [
+  { value: "none", label: "0" },
+  { value: "small", label: "Chico" },
+  { value: "normal", label: "Normal" },
+  { value: "large", label: "Grande" },
+];
 
 function createFileId(file: File): string {
   return `${file.name}-${file.size}-${file.lastModified}-${Math.random()
@@ -64,6 +103,8 @@ function useImageToPdfSimpleMode({
     null,
   );
   const [isProcessing, setIsProcessing] = useState(false);
+  const [pdfOptions, setPdfOptions] =
+    useState<ImageToPdfOptions>(DEFAULT_PDF_OPTIONS);
 
   const totalSize = useMemo(
     () => getSelectedFilesSize(selectedFiles),
@@ -81,6 +122,12 @@ function useImageToPdfSimpleMode({
 
   function clearDownloadResult() {
     replaceDownloadResult(null);
+  }
+
+  function updatePdfOptions(patch: Partial<ImageToPdfOptions>) {
+    setPdfOptions((current) => ({ ...current, ...patch }));
+    setErrorMessage(null);
+    clearDownloadResult();
   }
 
   function disposePreviewUrls(items: SelectedImageFile[]) {
@@ -155,11 +202,7 @@ function useImageToPdfSimpleMode({
 
   async function readFilesForWorker(): Promise<ImageInputFile[]> {
     return Promise.all(
-      selectedFiles.map(async ({ file }) => ({
-        name: file.name,
-        mimeType: file.type,
-        buffer: await file.arrayBuffer(),
-      })),
+      selectedFiles.map(({ file }) => toPdfImageInputFile(file)),
     );
   }
 
@@ -184,6 +227,7 @@ function useImageToPdfSimpleMode({
       const result = await runPdfOperation(worker, {
         kind: "images-to-pdf",
         files: await readFilesForWorker(),
+        options: pdfOptions,
       });
       if (result.kind !== "file") {
         throw new Error("La conversión no generó un PDF descargable.");
@@ -309,6 +353,30 @@ function useImageToPdfSimpleMode({
         Cada imagen se inserta como una página del PDF, en el orden de la
         izquierda.
       </p>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-sm font-medium">Tamaño</legend>
+        <SegmentedOptions
+          options={PAGE_SIZE_OPTIONS}
+          value={pdfOptions.pageSize}
+          onChange={(pageSize) => updatePdfOptions({ pageSize })}
+        />
+      </fieldset>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-sm font-medium">Orientación</legend>
+        <SegmentedOptions
+          options={ORIENTATION_OPTIONS}
+          value={pdfOptions.orientation}
+          onChange={(orientation) => updatePdfOptions({ orientation })}
+        />
+      </fieldset>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-sm font-medium">Margen</legend>
+        <SegmentedOptions
+          options={MARGIN_OPTIONS}
+          value={pdfOptions.margin}
+          onChange={(margin) => updatePdfOptions({ margin })}
+        />
+      </fieldset>
       {selectedFiles.length > 0 ? (
         <Button
           type="button"
@@ -378,23 +446,51 @@ function useImageToPdfSimpleMode({
 
   return (
     <ToolWorkspace
-      accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+      accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
       multiple
       hasContent={selectedFiles.length > 0}
       isProcessing={isProcessing}
       onFilesSelected={handleFilesSelected}
       emptyTitle="Selecciona imágenes"
-      emptyDescription="Arrastrá JPG o PNG acá o usá el botón. Respetamos el orden y generamos un PDF listo para descargar."
+      emptyDescription="Arrastrá JPG, PNG o WebP acá o usá el botón. Respetamos el orden y generamos un PDF listo para descargar."
       emptyActionLabel="Seleccionar imágenes"
       emptyHint="Hasta 40 imágenes · 20 MB por imagen · 200 MB en total"
       preview={preview}
       sidebarTitle="Imagen a PDF"
-      sidebarDescription="Convierte JPG o PNG en un PDF."
+      sidebarDescription="Convierte JPG, PNG o WebP en un PDF."
       sidebar={sidebar}
       primaryAction={primaryAction}
       addMore={{ label: "Agregar más imágenes" }}
       errorMessage={errorMessage}
       resultBanner={resultBanner}
     />
+  );
+}
+
+interface SegmentedOptionsProps<TValue extends string> {
+  options: Array<{ value: TValue; label: string }>;
+  value: TValue;
+  onChange: (value: TValue) => void;
+}
+
+function SegmentedOptions<TValue extends string>({
+  options,
+  value,
+  onChange,
+}: SegmentedOptionsProps<TValue>) {
+  return (
+    <div className="grid grid-cols-3 gap-1">
+      {options.map((option) => (
+        <Button
+          key={option.value}
+          type="button"
+          variant={value === option.value ? "brand" : "outline"}
+          size="sm"
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </Button>
+      ))}
+    </div>
   );
 }

@@ -1,14 +1,19 @@
 import JSZip from "jszip";
-import { PDFDocument, degrees } from "pdf-lib";
+import { PDFDocument, StandardFonts, degrees, rgb } from "pdf-lib";
 
 import type {
+  CropMargins,
   ImageInputFile,
+  ImageToPdfOptions,
   LayoutImageAsset,
   LayoutPagePayload,
+  PageNumberOptions,
   PdfInputFile,
   PdfOperationRequest,
   PdfOperationResponse,
   PdfOperationResult,
+  ProtectPdfOptions,
+  WatermarkOptions,
 } from "./pdfOperation.types";
 
 const workerContext = self as unknown as DedicatedWorkerGlobalScope;
@@ -16,7 +21,14 @@ const PDF_MIME_TYPE = "application/pdf";
 const ZIP_MIME_TYPE = "application/zip";
 const A4_PORTRAIT = { width: 595.28, height: 841.89 };
 const A4_LANDSCAPE = { width: 841.89, height: 595.28 };
-const PAGE_MARGIN = 36;
+const LETTER_PORTRAIT = { width: 612, height: 792 };
+const LETTER_LANDSCAPE = { width: 792, height: 612 };
+const IMAGE_TO_PDF_MARGINS: Record<ImageToPdfOptions["margin"], number> = {
+  none: 0,
+  small: 18,
+  normal: 36,
+  large: 72,
+};
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const outputBuffer = new ArrayBuffer(bytes.byteLength);
@@ -42,6 +54,18 @@ function createErrorMessage(error: unknown): string {
     error instanceof Error ? error.message : "No se pudo procesar el archivo.";
   const message = rawMessage.toLowerCase();
 
+  if (message.includes("incorrect password")) {
+    return "La contraseña no coincide con este PDF.";
+  }
+
+  if (message.includes("unsupported encryption")) {
+    return "El cifrado de este PDF todavía no es compatible con el desbloqueo local.";
+  }
+
+  if (message.includes("not encrypted")) {
+    return "El PDF no tiene contraseña para quitar.";
+  }
+
   if (message.includes("encrypted")) {
     return "El PDF está protegido con contraseña. Desbloquéalo antes de usar esta herramienta.";
   }
@@ -55,6 +79,10 @@ function createErrorMessage(error: unknown): string {
 
 async function loadPdf(file: PdfInputFile): Promise<PDFDocument> {
   return PDFDocument.load(file.buffer);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 async function copyPagesToNewDocument(
@@ -76,6 +104,191 @@ async function inspectPdf(file: PdfInputFile): Promise<PdfOperationResult> {
     kind: "inspect",
     pageCount: sourceDocument.getPageCount(),
   };
+}
+
+async function compressPdf(file: PdfInputFile): Promise<PdfOperationResult> {
+  const outputDocument = await loadPdf(file);
+  const bytes = await outputDocument.save({
+    useObjectStreams: true,
+    objectsPerTick: 50,
+  });
+
+  return createOutputFile("ihatepdf-compressed.pdf", PDF_MIME_TYPE, bytes);
+}
+
+async function watermarkPdf(
+  file: PdfInputFile,
+  options: WatermarkOptions,
+): Promise<PdfOperationResult> {
+  const outputDocument = await loadPdf(file);
+  const font = await outputDocument.embedFont(StandardFonts.HelveticaBold);
+  const text = options.text.trim();
+
+  if (!text) {
+    throw new Error("Escribe el texto de la marca de agua.");
+  }
+
+  for (const page of outputDocument.getPages()) {
+    const { width, height } = page.getSize();
+    const fontSize = clamp(options.fontSize, 12, 120);
+    const textWidth = font.widthOfTextAtSize(text, fontSize);
+
+    page.drawText(text, {
+      x: (width - textWidth) / 2,
+      y: (height - fontSize) / 2,
+      size: fontSize,
+      font,
+      color: rgb(0.12, 0.12, 0.12),
+      opacity: clamp(options.opacity, 0.05, 0.8),
+      rotate: degrees(options.rotation),
+    });
+  }
+
+  return createOutputFile(
+    "ihatepdf-watermarked.pdf",
+    PDF_MIME_TYPE,
+    await outputDocument.save(),
+  );
+}
+
+function getPageNumberPosition(
+  pageWidth: number,
+  pageHeight: number,
+  textWidth: number,
+  fontSize: number,
+  options: PageNumberOptions,
+) {
+  const margin = clamp(options.margin, 12, 144);
+  const isTop = options.position.startsWith("top");
+  const isCenter = options.position.endsWith("center");
+  const isRight = options.position.endsWith("right");
+
+  const x = isCenter
+    ? (pageWidth - textWidth) / 2
+    : isRight
+      ? pageWidth - margin - textWidth
+      : margin;
+  const y = isTop ? pageHeight - margin - fontSize : margin;
+
+  return { x, y };
+}
+
+async function numberPages(
+  file: PdfInputFile,
+  options: PageNumberOptions,
+): Promise<PdfOperationResult> {
+  const outputDocument = await loadPdf(file);
+  const font = await outputDocument.embedFont(StandardFonts.Helvetica);
+  const fontSize = clamp(options.fontSize, 8, 48);
+  const startAt = Math.max(1, Math.floor(options.startAt));
+
+  outputDocument.getPages().forEach((page, pageIndex) => {
+    const label = String(startAt + pageIndex);
+    const { width, height } = page.getSize();
+    const textWidth = font.widthOfTextAtSize(label, fontSize);
+    const { x, y } = getPageNumberPosition(
+      width,
+      height,
+      textWidth,
+      fontSize,
+      options,
+    );
+
+    page.drawText(label, {
+      x,
+      y,
+      size: fontSize,
+      font,
+      color: rgb(0.12, 0.12, 0.12),
+    });
+  });
+
+  return createOutputFile(
+    "ihatepdf-numbered.pdf",
+    PDF_MIME_TYPE,
+    await outputDocument.save(),
+  );
+}
+
+async function cropPdf(
+  file: PdfInputFile,
+  margins: CropMargins,
+): Promise<PdfOperationResult> {
+  const outputDocument = await loadPdf(file);
+
+  for (const page of outputDocument.getPages()) {
+    const { width, height } = page.getSize();
+    const left = Math.max(0, margins.left);
+    const right = Math.max(0, margins.right);
+    const top = Math.max(0, margins.top);
+    const bottom = Math.max(0, margins.bottom);
+    const croppedWidth = width - left - right;
+    const croppedHeight = height - top - bottom;
+
+    if (croppedWidth < 36 || croppedHeight < 36) {
+      throw new Error(
+        "Los márgenes de recorte dejan una página demasiado pequeña.",
+      );
+    }
+
+    page.setCropBox(left, bottom, croppedWidth, croppedHeight);
+    page.setTrimBox(left, bottom, croppedWidth, croppedHeight);
+  }
+
+  return createOutputFile(
+    "ihatepdf-cropped.pdf",
+    PDF_MIME_TYPE,
+    await outputDocument.save(),
+  );
+}
+
+async function protectPdf(
+  file: PdfInputFile,
+  options: ProtectPdfOptions,
+): Promise<PdfOperationResult> {
+  if (!options.userPassword) {
+    throw new Error("Escribe una contraseña para proteger el PDF.");
+  }
+
+  const { encryptPDF } = await import("@pdfsmaller/pdf-encrypt");
+  const encryptedBytes = await encryptPDF(
+    new Uint8Array(file.buffer),
+    options.userPassword,
+    {
+      ownerPassword: options.ownerPassword || options.userPassword,
+      algorithm: "AES-256",
+      allowPrinting: options.allowPrinting,
+      allowCopying: options.allowCopying,
+      allowModifying: options.allowModifying,
+    },
+  );
+
+  return createOutputFile(
+    "ihatepdf-protected.pdf",
+    PDF_MIME_TYPE,
+    encryptedBytes,
+  );
+}
+
+async function unlockPdf(
+  file: PdfInputFile,
+  password: string,
+): Promise<PdfOperationResult> {
+  if (!password) {
+    throw new Error("Escribe la contraseña actual del PDF.");
+  }
+
+  const { decryptPDF } = await import("@pdfsmaller/pdf-decrypt");
+  const decryptedBytes = await decryptPDF(
+    new Uint8Array(file.buffer),
+    password,
+  );
+
+  return createOutputFile(
+    "ihatepdf-unlocked.pdf",
+    PDF_MIME_TYPE,
+    decryptedBytes,
+  );
 }
 
 async function mergePdfs(files: PdfInputFile[]): Promise<PdfOperationResult> {
@@ -213,8 +426,57 @@ async function embedImage(outputDocument: PDFDocument, file: ImageInputFile) {
   return outputDocument.embedJpg(file.buffer);
 }
 
+function resolveImageToPdfPageSize(
+  imageWidth: number,
+  imageHeight: number,
+  options: ImageToPdfOptions,
+) {
+  const margin = IMAGE_TO_PDF_MARGINS[options.margin];
+
+  if (options.pageSize === "image") {
+    return {
+      width: imageWidth + margin * 2,
+      height: imageHeight + margin * 2,
+      margin,
+    };
+  }
+
+  const pageSize =
+    options.pageSize === "letter"
+      ? imageWidth > imageHeight
+        ? LETTER_LANDSCAPE
+        : LETTER_PORTRAIT
+      : imageWidth > imageHeight
+        ? A4_LANDSCAPE
+        : A4_PORTRAIT;
+
+  const shouldUseLandscape =
+    options.orientation === "landscape" ||
+    (options.orientation === "auto" && imageWidth > imageHeight);
+  const shouldUsePortrait =
+    options.orientation === "portrait" ||
+    (options.orientation === "auto" && imageWidth <= imageHeight);
+  const width = shouldUseLandscape
+    ? Math.max(pageSize.width, pageSize.height)
+    : shouldUsePortrait
+      ? Math.min(pageSize.width, pageSize.height)
+      : pageSize.width;
+  const height = shouldUseLandscape
+    ? Math.min(pageSize.width, pageSize.height)
+    : shouldUsePortrait
+      ? Math.max(pageSize.width, pageSize.height)
+      : pageSize.height;
+
+  return { width, height, margin };
+}
+
 async function imagesToPdf(
   files: ImageInputFile[],
+  options: ImageToPdfOptions = {
+    pageSize: "a4",
+    orientation: "auto",
+    margin: "normal",
+  },
 ): Promise<PdfOperationResult> {
   const outputDocument = await PDFDocument.create();
   const embeddedImages = await Promise.all(
@@ -222,11 +484,14 @@ async function imagesToPdf(
   );
 
   for (const embeddedImage of embeddedImages) {
-    const pageSize =
-      embeddedImage.width > embeddedImage.height ? A4_LANDSCAPE : A4_PORTRAIT;
+    const pageSize = resolveImageToPdfPageSize(
+      embeddedImage.width,
+      embeddedImage.height,
+      options,
+    );
     const page = outputDocument.addPage([pageSize.width, pageSize.height]);
-    const availableWidth = pageSize.width - PAGE_MARGIN * 2;
-    const availableHeight = pageSize.height - PAGE_MARGIN * 2;
+    const availableWidth = pageSize.width - pageSize.margin * 2;
+    const availableHeight = pageSize.height - pageSize.margin * 2;
     const scale = Math.min(
       availableWidth / embeddedImage.width,
       availableHeight / embeddedImage.height,
@@ -334,6 +599,18 @@ async function runOperation(
   switch (request.kind) {
     case "inspect-pdf":
       return inspectPdf(request.file);
+    case "compress-pdf":
+      return compressPdf(request.file);
+    case "watermark-pdf":
+      return watermarkPdf(request.file, request.options);
+    case "number-pages":
+      return numberPages(request.file, request.options);
+    case "protect-pdf":
+      return protectPdf(request.file, request.options);
+    case "unlock-pdf":
+      return unlockPdf(request.file, request.password);
+    case "crop-pdf":
+      return cropPdf(request.file, request.margins);
     case "merge-pdfs":
       return mergePdfs(request.files);
     case "split-pdf":
@@ -347,7 +624,7 @@ async function runOperation(
     case "rotate-pages":
       return rotatePages(request.file, request.pages, request.angle);
     case "images-to-pdf":
-      return imagesToPdf(request.files);
+      return imagesToPdf(request.files, request.options);
     case "images-to-pdf-layout":
       return imagesToPdfLayout(request.images, request.pages);
   }

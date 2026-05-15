@@ -39,6 +39,7 @@ import type {
   LayoutPagePayload,
 } from "@/features/pdf-tools/shared/pdfOperation.types";
 
+import { toPdfImageInputFile } from "../imageFileConversion";
 import { InteractivePage } from "./InteractivePage";
 import {
   LAYOUT_ASSET_DRAG_MIME,
@@ -354,11 +355,11 @@ function useImageToPdfLayoutEditor({
       const workerImagePromises = state.images.flatMap((image) =>
         referencedImageIds.has(image.id)
           ? [
-              image.file.arrayBuffer().then((buffer) => ({
+              toPdfImageInputFile(image.file).then((convertedImage) => ({
                 id: image.id,
-                name: image.name,
-                mimeType: image.mimeType,
-                buffer,
+                name: convertedImage.name,
+                mimeType: convertedImage.mimeType,
+                buffer: convertedImage.buffer,
               })),
             ]
           : [],
@@ -451,7 +452,7 @@ function useImageToPdfLayoutEditor({
         ref={inputRef}
         className="sr-only"
         type="file"
-        accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+        accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
         multiple
         tabIndex={-1}
         aria-hidden="true"

@@ -11,22 +11,25 @@ equipo y no se suben a un servidor para unirlos, reorganizarlos o convertirlos.
 - Unir varios PDF en un solo archivo.
 - Dividir un PDF en un ZIP con un archivo por página.
 - Extraer, eliminar, reordenar y rotar páginas.
-- Convertir imágenes JPG/PNG a PDF.
-- Exportar páginas de PDF como imágenes PNG.
+- Comprimir, recortar, marcar con agua y numerar PDF.
+- Proteger PDF con contraseña y desbloquear PDF con contraseña conocida.
+- Convertir imágenes JPG/PNG/WebP a PDF con margen, orientación y tamaño.
+- Exportar páginas de PDF como imágenes PNG/JPG/WebP.
 
 ## Privacidad y límites
 
 iHatePDF no requiere backend ni claves de API. El procesamiento ocurre del lado
 del cliente con JavaScript y Web Workers, por lo que la capacidad real depende
-de la memoria y el navegador del equipo que lo ejecuta. Los PDF protegidos con
-contraseña o corruptos pueden no procesarse correctamente.
+de la memoria y el navegador del equipo que lo ejecuta. Los PDF corruptos o con
+cifrados no compatibles pueden no procesarse correctamente.
 
 ## Stack
 
 - React 18 + TypeScript.
 - Vite.
 - Tailwind CSS.
-- pdf-lib, pdfjs-dist y JSZip para las operaciones con archivos.
+- pdf-lib, pdfjs-dist, JSZip y las utilidades PDFSmaller para las operaciones
+  con archivos.
 - Vitest y ESLint para verificación automática.
 
 ## Requisitos

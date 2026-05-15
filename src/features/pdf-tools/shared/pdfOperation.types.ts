@@ -29,10 +29,82 @@ export interface LayoutPagePayload {
   elements: LayoutPageElement[];
 }
 
+export interface ImageToPdfOptions {
+  pageSize: "a4" | "letter" | "image";
+  orientation: "auto" | "portrait" | "landscape";
+  margin: "none" | "small" | "normal" | "large";
+}
+
+export interface WatermarkOptions {
+  text: string;
+  opacity: number;
+  fontSize: number;
+  rotation: number;
+}
+
+export type PageNumberPosition =
+  | "bottom-left"
+  | "bottom-center"
+  | "bottom-right"
+  | "top-left"
+  | "top-center"
+  | "top-right";
+
+export interface PageNumberOptions {
+  startAt: number;
+  fontSize: number;
+  position: PageNumberPosition;
+  margin: number;
+}
+
+export interface CropMargins {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+export interface ProtectPdfOptions {
+  userPassword: string;
+  ownerPassword?: string;
+  allowPrinting: boolean;
+  allowCopying: boolean;
+  allowModifying: boolean;
+}
+
 export type PdfOperationRequest =
   | {
       kind: "inspect-pdf";
       file: PdfInputFile;
+    }
+  | {
+      kind: "compress-pdf";
+      file: PdfInputFile;
+    }
+  | {
+      kind: "watermark-pdf";
+      file: PdfInputFile;
+      options: WatermarkOptions;
+    }
+  | {
+      kind: "number-pages";
+      file: PdfInputFile;
+      options: PageNumberOptions;
+    }
+  | {
+      kind: "protect-pdf";
+      file: PdfInputFile;
+      options: ProtectPdfOptions;
+    }
+  | {
+      kind: "unlock-pdf";
+      file: PdfInputFile;
+      password: string;
+    }
+  | {
+      kind: "crop-pdf";
+      file: PdfInputFile;
+      margins: CropMargins;
     }
   | {
       kind: "merge-pdfs";
@@ -66,6 +138,7 @@ export type PdfOperationRequest =
   | {
       kind: "images-to-pdf";
       files: ImageInputFile[];
+      options?: ImageToPdfOptions;
     }
   | {
       kind: "images-to-pdf-layout";

@@ -15,6 +15,12 @@ function getPdfOperationTransferList(
 ): Transferable[] {
   switch (request.kind) {
     case "inspect-pdf":
+    case "compress-pdf":
+    case "watermark-pdf":
+    case "number-pages":
+    case "protect-pdf":
+    case "unlock-pdf":
+    case "crop-pdf":
     case "split-pdf":
     case "extract-pages":
     case "delete-pages":
@@ -43,8 +49,11 @@ export function runPdfOperation(
       reject(new Error(event.data.message));
     };
 
-    worker.onerror = () => {
-      reject(new Error("No se pudo procesar el archivo en el navegador."));
+    worker.onerror = (event) => {
+      const detail = event.message ? ` ${event.message}` : "";
+      reject(
+        new Error(`No se pudo procesar el archivo en el navegador.${detail}`),
+      );
     };
 
     worker.postMessage(request, getPdfOperationTransferList(request));

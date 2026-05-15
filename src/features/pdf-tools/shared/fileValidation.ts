@@ -37,9 +37,11 @@ export function isSupportedImageFile(file: ImageFileLike): boolean {
   return (
     file.type === "image/jpeg" ||
     file.type === "image/png" ||
+    file.type === "image/webp" ||
     normalizedName.endsWith(".jpg") ||
     normalizedName.endsWith(".jpeg") ||
-    normalizedName.endsWith(".png")
+    normalizedName.endsWith(".png") ||
+    normalizedName.endsWith(".webp")
   );
 }
 
@@ -144,7 +146,7 @@ export function validateImageFiles(
 
   const invalidFiles = files.filter((file) => !isSupportedImageFile(file));
   if (invalidFiles.length > 0) {
-    errors.push("Solo se admiten imágenes JPG o PNG.");
+    errors.push("Solo se admiten imágenes JPG, PNG o WebP.");
   }
 
   const oversizedFiles = files.filter(

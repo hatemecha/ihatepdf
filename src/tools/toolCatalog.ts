@@ -1,12 +1,18 @@
 import {
   Combine,
   CopyMinus,
+  Crop,
   FileImage,
+  FileArchive,
+  Hash,
   ImagePlus,
   ListOrdered,
+  Lock,
   RotateCcw,
   Scissors,
+  Stamp,
   Trash2,
+  Unlock,
   type LucideIcon,
 } from "lucide-react";
 
@@ -15,6 +21,12 @@ type ToolStatus = "available";
 export type ToolCategoryId = "organize" | "convert" | "edit";
 
 type ToolImplementation =
+  | "compress-pdf"
+  | "watermark-pdf"
+  | "number-pages"
+  | "protect-pdf"
+  | "unlock-pdf"
+  | "crop-pdf"
   | "merge-pdfs"
   | "split-pdf"
   | "extract-pages"
@@ -74,6 +86,18 @@ const TOOLS: Tool[] = [
     highlight: true,
   },
   {
+    slug: "compress",
+    name: "Comprimir PDF",
+    description: "Reduce y optimiza el archivo PDF.",
+    longDescription:
+      "Compacta la estructura del PDF en el navegador y descarga una copia optimizada.",
+    category: "organize",
+    status: "available",
+    implementation: "compress-pdf",
+    icon: FileArchive,
+    highlight: true,
+  },
+  {
     slug: "split",
     name: "Dividir PDF",
     description: "Genera un ZIP con un PDF por página.",
@@ -129,11 +153,66 @@ const TOOLS: Tool[] = [
     icon: RotateCcw,
   },
   {
+    slug: "watermark",
+    name: "Marca de agua",
+    description: "Agrega texto visible a todas las páginas.",
+    longDescription:
+      "Escribe una marca, ajusta opacidad y ángulo, y descarga un PDF marcado.",
+    category: "edit",
+    status: "available",
+    implementation: "watermark-pdf",
+    icon: Stamp,
+  },
+  {
+    slug: "page-numbers",
+    name: "Numerar páginas",
+    description: "Añade números en la posición que elijas.",
+    longDescription:
+      "Configura inicio, tamaño y ubicación de la numeración antes de descargar la copia final.",
+    category: "edit",
+    status: "available",
+    implementation: "number-pages",
+    icon: Hash,
+  },
+  {
+    slug: "protect",
+    name: "Proteger PDF",
+    description: "Cifra el PDF con contraseña.",
+    longDescription:
+      "Define una contraseña de apertura y permisos básicos sin enviar el archivo a un servidor.",
+    category: "edit",
+    status: "available",
+    implementation: "protect-pdf",
+    icon: Lock,
+  },
+  {
+    slug: "unlock",
+    name: "Desbloquear PDF",
+    description: "Quita la contraseña conocida.",
+    longDescription:
+      "Usa la contraseña actual para descargar una copia desbloqueada del PDF.",
+    category: "edit",
+    status: "available",
+    implementation: "unlock-pdf",
+    icon: Unlock,
+  },
+  {
+    slug: "crop",
+    name: "Recortar PDF",
+    description: "Oculta márgenes de todas las páginas.",
+    longDescription:
+      "Define el recorte superior, inferior y lateral en milímetros y genera una copia ajustada.",
+    category: "edit",
+    status: "available",
+    implementation: "crop-pdf",
+    icon: Crop,
+  },
+  {
     slug: "images-to-pdf",
     name: "Imagen a PDF",
-    description: "Convierte JPG o PNG en PDF.",
+    description: "Convierte JPG, PNG o WebP en PDF.",
     longDescription:
-      "Carga imágenes, define el orden de páginas y crea un PDF listo para compartir.",
+      "Carga imágenes, define orden, margen, orientación y tamaño de página antes de crear el PDF.",
     category: "convert",
     status: "available",
     implementation: "images-to-pdf",
@@ -143,9 +222,9 @@ const TOOLS: Tool[] = [
   {
     slug: "pdf-to-images",
     name: "PDF a imágenes",
-    description: "Exporta páginas como PNG en un ZIP.",
+    description: "Exporta páginas como PNG, JPG o WebP.",
     longDescription:
-      "Selecciona páginas del PDF y expórtalas como imágenes PNG empaquetadas en un ZIP.",
+      "Selecciona páginas del PDF y expórtalas como imágenes PNG, JPG o WebP empaquetadas en un ZIP.",
     category: "convert",
     status: "available",
     implementation: "pdf-to-images",

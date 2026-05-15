@@ -23,22 +23,62 @@ interface DownloadResult {
   fileName: string;
 }
 
-const PNG_MIME_TYPE = "image/png";
+type ImageExportFormat = "png" | "jpg" | "webp";
+
+const IMAGE_EXPORT_FORMATS: Array<{
+  value: ImageExportFormat;
+  label: string;
+  mimeType: string;
+  extension: string;
+  quality?: number;
+}> = [
+  { value: "png", label: "PNG", mimeType: "image/png", extension: "png" },
+  {
+    value: "jpg",
+    label: "JPG",
+    mimeType: "image/jpeg",
+    extension: "jpg",
+    quality: 0.88,
+  },
+  {
+    value: "webp",
+    label: "WebP",
+    mimeType: "image/webp",
+    extension: "webp",
+    quality: 0.86,
+  },
+];
 
 interface RenderedImagePage {
   fileName: string;
   imageBlob: Blob;
 }
 
-function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+function getImageExportFormat(format: ImageExportFormat) {
+  return (
+    IMAGE_EXPORT_FORMATS.find((current) => current.value === format) ??
+    IMAGE_EXPORT_FORMATS[0]
+  );
+}
+
+function canvasToImageBlob(
+  canvas: HTMLCanvasElement,
+  format: ImageExportFormat,
+): Promise<Blob> {
+  const exportFormat = getImageExportFormat(format);
+
   return new Promise((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        reject(new Error("No se pudo generar la imagen de la página."));
-        return;
-      }
-      resolve(blob);
-    }, PNG_MIME_TYPE);
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error("No se pudo generar la imagen de la página."));
+          return;
+        }
+        resolve(blob);
+      },
+      exportFormat.mimeType,
+      exportFormat.quality,
+    );
   });
 }
 
@@ -49,6 +89,7 @@ function createInitialPageOrder(pageCount: number): number[] {
 async function renderPdfPageAsImage(
   pdf: Awaited<ReturnType<typeof loadPdfDocument>>,
   pageNumber: number,
+  format: ImageExportFormat,
 ): Promise<RenderedImagePage> {
   const page = await pdf.getPage(pageNumber);
   const viewport = page.getViewport({ scale: 2 });
@@ -61,10 +102,18 @@ async function renderPdfPageAsImage(
   canvas.height = Math.ceil(viewport.height);
 
   try {
+    if (format === "jpg") {
+      canvasContext.fillStyle = "#ffffff";
+      canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
     await page.render({ canvas, canvasContext, viewport }).promise;
+    const exportFormat = getImageExportFormat(format);
     return {
-      fileName: `page-${String(pageNumber).padStart(3, "0")}.png`,
-      imageBlob: await canvasToPngBlob(canvas),
+      fileName: `page-${String(pageNumber).padStart(3, "0")}.${
+        exportFormat.extension
+      }`,
+      imageBlob: await canvasToImageBlob(canvas, format),
     };
   } finally {
     canvas.width = 0;
@@ -89,6 +138,7 @@ function usePdfToImagesTool() {
     null,
   );
   const [isProcessing, setIsProcessing] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ImageExportFormat>("png");
 
   const hasContent = Boolean(selectedFile && pageCount > 0);
   const canExport = hasContent && selectedPages.size > 0 && !isProcessing;
@@ -107,6 +157,12 @@ function usePdfToImagesTool() {
   const clearDownloadResult = useCallback(() => {
     replaceDownloadResult(null);
   }, [replaceDownloadResult]);
+
+  function changeExportFormat(nextFormat: ImageExportFormat) {
+    setExportFormat(nextFormat);
+    setErrorMessage(null);
+    clearDownloadResult();
+  }
 
   async function handleFilesSelected(files: File[]) {
     const file = files[0];
@@ -196,7 +252,11 @@ function usePdfToImagesTool() {
 
       const renderedPages = await Promise.all(
         sortedPages.map(async (pageNumber) => {
-          const renderedPage = await renderPdfPageAsImage(pdf, pageNumber);
+          const renderedPage = await renderPdfPageAsImage(
+            pdf,
+            pageNumber,
+            exportFormat,
+          );
           completedPages += 1;
           setProgressLabel(
             `Renderizando página ${completedPages} de ${sortedPages.length}`,
@@ -212,9 +272,10 @@ function usePdfToImagesTool() {
       setProgressLabel("Generando ZIP");
       const zipBlob = await zip.generateAsync({ type: "blob" });
       const url = URL.createObjectURL(zipBlob);
+      const formatLabel = getImageExportFormat(exportFormat).label;
       replaceDownloadResult({
         url,
-        fileName: "ihatepdf-pages-as-images.zip",
+        fileName: `ihatepdf-pages-as-${formatLabel.toLowerCase()}.zip`,
       });
     } catch (error) {
       const message =
@@ -293,9 +354,26 @@ function usePdfToImagesTool() {
         </div>
       </div>
 
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-sm font-medium">Formato</legend>
+        <div className="grid grid-cols-3 gap-2">
+          {IMAGE_EXPORT_FORMATS.map((format) => (
+            <Button
+              key={format.value}
+              type="button"
+              variant={exportFormat === format.value ? "brand" : "outline"}
+              size="sm"
+              onClick={() => changeExportFormat(format.value)}
+              disabled={isProcessing}
+            >
+              {format.label}
+            </Button>
+          ))}
+        </div>
+      </fieldset>
+
       <p className="text-sm text-muted-foreground">
-        Cada página seleccionada se exporta como PNG a 2x escala dentro de un
-        ZIP.
+        Cada página seleccionada se exporta a 2x escala dentro de un ZIP.
       </p>
     </div>
   );
@@ -328,7 +406,10 @@ function usePdfToImagesTool() {
       <AlertTitle>Imágenes listas</AlertTitle>
       <AlertDescription>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <span>Las páginas se exportaron como PNG.</span>
+          <span>
+            Las páginas se exportaron como{" "}
+            {getImageExportFormat(exportFormat).label}.
+          </span>
           <Button asChild variant="brand" size="sm">
             <a href={downloadResult.url} download={downloadResult.fileName}>
               <Download data-icon="inline-start" aria-hidden />
@@ -352,7 +433,7 @@ function usePdfToImagesTool() {
       emptyHint="Hasta 50 MB por archivo"
       preview={preview}
       sidebarTitle="PDF a imágenes"
-      sidebarDescription="Exporta páginas como PNG dentro de un ZIP."
+      sidebarDescription="Exporta páginas como PNG, JPG o WebP dentro de un ZIP."
       sidebar={sidebar}
       primaryAction={primaryAction}
       errorMessage={errorMessage}

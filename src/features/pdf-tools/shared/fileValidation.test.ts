@@ -102,7 +102,14 @@ describe("fileValidation", () => {
         size: 1024,
         type: "image/webp",
       }),
-    ).toBe(false);
+    ).toBe(true);
+    expect(
+      isSupportedImageFile({
+        name: "photo.WEBP",
+        size: 1024,
+        type: "",
+      }),
+    ).toBe(true);
   });
 
   it("validates image batches", () => {

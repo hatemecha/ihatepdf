@@ -6,6 +6,7 @@ dist-ssr
 # Vite + PWA generated assets
 dev-dist
 .playwright-mcp
+.omx
 
 # Editor / OS
 .DS_Store
