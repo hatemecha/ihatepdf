@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useReducer } from "react";
 import { ClipboardList, Loader2 } from "lucide-react";
 import {
   PDFDocument,
@@ -23,19 +23,101 @@ interface FormFieldData {
   options?: string[];
 }
 
-export function FormsPdfTool() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(
-    null,
-  );
+interface FormsPdfState {
+  selectedFile: File | null;
+  isProcessing: boolean;
+  errorMessage: string | null;
+  downloadResult: DownloadResult | null;
+  formFields: FormFieldData[];
+  formValues: Record<string, string | boolean>;
+  flatten: boolean;
+}
 
-  const [formFields, setFormFields] = useState<FormFieldData[]>([]);
-  const [formValues, setFormValues] = useState<
-    Record<string, string | boolean>
-  >({});
-  const [flatten, setFlatten] = useState(true);
+type FormsPdfAction =
+  | { type: "validationFailed"; message: string }
+  | { type: "fileSelected"; file: File }
+  | {
+      type: "formLoaded";
+      fields: FormFieldData[];
+      values: Record<string, string | boolean>;
+      warningMessage?: string;
+    }
+  | { type: "formLoadFailed"; message: string }
+  | { type: "processingStarted" }
+  | { type: "processingSucceeded"; result: DownloadResult }
+  | { type: "processingFailed"; message: string }
+  | { type: "fieldValueChanged"; name: string; value: string | boolean }
+  | { type: "flattenChanged"; flatten: boolean };
+
+const initialFormsPdfState: FormsPdfState = {
+  selectedFile: null,
+  isProcessing: false,
+  errorMessage: null,
+  downloadResult: null,
+  formFields: [],
+  formValues: {},
+  flatten: true,
+};
+
+function formsPdfReducer(
+  state: FormsPdfState,
+  action: FormsPdfAction,
+): FormsPdfState {
+  switch (action.type) {
+    case "validationFailed":
+      return { ...state, errorMessage: action.message };
+    case "fileSelected":
+      return {
+        ...state,
+        selectedFile: action.file,
+        errorMessage: null,
+        downloadResult: null,
+        formFields: [],
+        formValues: {},
+      };
+    case "formLoaded":
+      return {
+        ...state,
+        formFields: action.fields,
+        formValues: action.values,
+        errorMessage: action.warningMessage ?? null,
+      };
+    case "formLoadFailed":
+      return { ...state, errorMessage: action.message };
+    case "processingStarted":
+      return {
+        ...state,
+        isProcessing: true,
+        errorMessage: null,
+        downloadResult: null,
+      };
+    case "processingSucceeded":
+      return {
+        ...state,
+        isProcessing: false,
+        downloadResult: action.result,
+      };
+    case "processingFailed":
+      return {
+        ...state,
+        isProcessing: false,
+        errorMessage: action.message,
+      };
+    case "fieldValueChanged":
+      return {
+        ...state,
+        formValues: {
+          ...state.formValues,
+          [action.name]: action.value,
+        },
+      };
+    case "flattenChanged":
+      return { ...state, flatten: action.flatten };
+  }
+}
+
+export function FormsPdfTool() {
+  const [state, dispatch] = useReducer(formsPdfReducer, initialFormsPdfState);
 
   async function handleFilesSelected(files: File[]) {
     const file = files[0];
@@ -43,15 +125,14 @@ export function FormsPdfTool() {
 
     const validation = validateSinglePdfFile(file);
     if (!validation.isValid) {
-      setErrorMessage(validation.errors[0] ?? "No se pudo leer el archivo.");
+      dispatch({
+        type: "validationFailed",
+        message: validation.errors[0] ?? "No se pudo leer el archivo.",
+      });
       return;
     }
 
-    setErrorMessage(null);
-    setDownloadResult(null);
-    setSelectedFile(file);
-    setFormFields([]);
-    setFormValues({});
+    dispatch({ type: "fileSelected", file });
 
     try {
       const buffer = await file.arrayBuffer();
@@ -86,32 +167,34 @@ export function FormsPdfTool() {
           initialValues[name] = field.getSelected()[0] || "";
         }
       }
-      setFormFields(parsedFields);
-      setFormValues(initialValues);
-
-      if (parsedFields.length === 0) {
-        setErrorMessage(
-          "Este PDF no contiene campos de formulario rellenables.",
-        );
-      }
+      dispatch({
+        type: "formLoaded",
+        fields: parsedFields,
+        values: initialValues,
+        warningMessage:
+          parsedFields.length === 0
+            ? "Este PDF no contiene campos de formulario rellenables."
+            : undefined,
+      });
     } catch {
-      setErrorMessage("No se pudo leer el formulario del PDF.");
+      dispatch({
+        type: "formLoadFailed",
+        message: "No se pudo leer el formulario del PDF.",
+      });
     }
   }
 
   async function handleFillAndSave() {
-    if (!selectedFile) return;
+    if (!state.selectedFile) return;
 
-    setIsProcessing(true);
-    setErrorMessage(null);
-    setDownloadResult(null);
+    dispatch({ type: "processingStarted" });
 
     try {
-      const buffer = await selectedFile.arrayBuffer();
+      const buffer = await state.selectedFile.arrayBuffer();
       const doc = await PDFDocument.load(buffer, { ignoreEncryption: true });
       const form = doc.getForm();
 
-      for (const [name, value] of Object.entries(formValues)) {
+      for (const [name, value] of Object.entries(state.formValues)) {
         const field = form.getField(name);
         if (!field) continue;
 
@@ -138,7 +221,7 @@ export function FormsPdfTool() {
         }
       }
 
-      if (flatten) {
+      if (state.flatten) {
         form.flatten();
       }
 
@@ -148,24 +231,28 @@ export function FormsPdfTool() {
       });
       const url = URL.createObjectURL(blob);
 
-      setDownloadResult({
-        url,
-        fileName: selectedFile.name.replace(/\.pdf$/i, "") + "-rellenado.pdf",
-        mimeType: "application/pdf",
+      dispatch({
+        type: "processingSucceeded",
+        result: {
+          url,
+          fileName:
+            state.selectedFile.name.replace(/\.pdf$/i, "") + "-rellenado.pdf",
+          mimeType: "application/pdf",
+        },
       });
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Error al procesar el formulario.",
-      );
-    } finally {
-      setIsProcessing(false);
+      dispatch({
+        type: "processingFailed",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Error al procesar el formulario.",
+      });
     }
   }
 
   function handleValueChange(name: string, value: string | boolean) {
-    setFormValues((prev) => ({ ...prev, [name]: value }));
+    dispatch({ type: "fieldValueChanged", name, value });
   }
 
   const primaryAction = (
@@ -174,10 +261,14 @@ export function FormsPdfTool() {
       variant="brand"
       size="lg"
       onClick={handleFillAndSave}
-      disabled={!selectedFile || isProcessing || formFields.length === 0}
+      disabled={
+        !state.selectedFile ||
+        state.isProcessing ||
+        state.formFields.length === 0
+      }
       className="w-full"
     >
-      {isProcessing ? (
+      {state.isProcessing ? (
         <Loader2
           className="animate-spin"
           data-icon="inline-start"
@@ -186,31 +277,31 @@ export function FormsPdfTool() {
       ) : (
         <ClipboardList data-icon="inline-start" aria-hidden />
       )}
-      {isProcessing ? "Procesando" : "Guardar PDF"}
+      {state.isProcessing ? "Procesando" : "Guardar PDF"}
     </Button>
   );
 
   return (
     <ToolWorkspace
       accept="application/pdf,.pdf"
-      hasContent={Boolean(selectedFile)}
-      isProcessing={isProcessing}
+      hasContent={Boolean(state.selectedFile)}
+      isProcessing={state.isProcessing}
       onFilesSelected={handleFilesSelected}
       emptyTitle="Selecciona un PDF con formularios"
       emptyDescription="Sube un archivo PDF interactivo para rellenar sus campos y aplanarlo."
       emptyActionLabel="Seleccionar PDF"
       emptyHint="Hasta 50 MB por archivo"
       preview={
-        selectedFile ? (
+        state.selectedFile ? (
           <div className="flex h-full bg-card rounded-xl border flex-col p-6 overflow-y-auto">
             <h2 className="text-xl font-medium mb-4">Campos del Formulario</h2>
-            {formFields.length === 0 ? (
+            {state.formFields.length === 0 ? (
               <div className="text-muted-foreground flex items-center justify-center h-full">
                 No se encontraron campos interactivos.
               </div>
             ) : (
               <div className="flex flex-col gap-4 max-w-2xl">
-                {formFields.map((field) => (
+                {state.formFields.map((field) => (
                   <div
                     key={field.name}
                     className="flex flex-col gap-1 border-b pb-4"
@@ -221,7 +312,7 @@ export function FormsPdfTool() {
                     {field.type === "text" && (
                       <input
                         type="text"
-                        value={(formValues[field.name] as string) || ""}
+                        value={(state.formValues[field.name] as string) || ""}
                         onChange={(e) =>
                           handleValueChange(field.name, e.target.value)
                         }
@@ -232,7 +323,9 @@ export function FormsPdfTool() {
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={(formValues[field.name] as boolean) || false}
+                          checked={
+                            (state.formValues[field.name] as boolean) || false
+                          }
                           onChange={(e) =>
                             handleValueChange(field.name, e.target.checked)
                           }
@@ -253,7 +346,7 @@ export function FormsPdfTool() {
                             <input
                               type="radio"
                               name={field.name}
-                              checked={formValues[field.name] === opt}
+                              checked={state.formValues[field.name] === opt}
                               onChange={() =>
                                 handleValueChange(field.name, opt)
                               }
@@ -265,7 +358,7 @@ export function FormsPdfTool() {
                     )}
                     {field.type === "dropdown" && (
                       <select
-                        value={(formValues[field.name] as string) || ""}
+                        value={(state.formValues[field.name] as string) || ""}
                         onChange={(e) =>
                           handleValueChange(field.name, e.target.value)
                         }
@@ -298,8 +391,13 @@ export function FormsPdfTool() {
           <label className="flex items-center gap-2 cursor-pointer bg-muted p-2 rounded border">
             <input
               type="checkbox"
-              checked={flatten}
-              onChange={(e) => setFlatten(e.target.checked)}
+              checked={state.flatten}
+              onChange={(e) =>
+                dispatch({
+                  type: "flattenChanged",
+                  flatten: e.target.checked,
+                })
+              }
             />
             <span className="text-foreground">
               Aplanar (Flatten) al guardar
@@ -308,10 +406,10 @@ export function FormsPdfTool() {
         </div>
       }
       primaryAction={primaryAction}
-      errorMessage={errorMessage}
+      errorMessage={state.errorMessage}
       resultBanner={
-        downloadResult ? (
-          <DownloadReadyBanner downloadResult={downloadResult} />
+        state.downloadResult ? (
+          <DownloadReadyBanner downloadResult={state.downloadResult} />
         ) : null
       }
     />

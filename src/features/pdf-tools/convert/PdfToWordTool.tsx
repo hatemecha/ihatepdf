@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FileText, Loader2 } from "lucide-react";
-import { Document, Packer, Paragraph, Table } from "docx";
+import { Document, Packer, type ISectionOptions } from "docx";
 
 import { Button } from "@/components/ui/button";
 import { ToolWorkspace } from "@/features/pdf-tools/shared/ToolWorkspace";
@@ -13,7 +13,7 @@ import {
   DownloadReadyBanner,
   type DownloadResult,
 } from "@/features/pdf-tools/shared/DownloadReadyBanner";
-import { buildEditablePageBlocks } from "@/features/pdf-tools/convert/pdfToWordConversion";
+import { buildEditablePageSection } from "@/features/pdf-tools/convert/pdfToWordConversion";
 
 export function PdfToWordTool() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -56,49 +56,66 @@ export function PdfToWordTool() {
       ]);
       pdf = loadedPdf;
       const numPages = pdf.numPages;
-      const documentBlocks: Array<Paragraph | Table> = [];
-      const paintImageOps = [
-        pdfjs.OPS.paintImageXObject,
-        pdfjs.OPS.paintImageXObjectRepeat,
-      ] as const;
+      let completedPages = 0;
+      const imageOperators = {
+        saveOp: pdfjs.OPS.save,
+        restoreOp: pdfjs.OPS.restore,
+        transformOp: pdfjs.OPS.transform,
+        paintImageOps: [
+          pdfjs.OPS.paintImageXObject,
+          pdfjs.OPS.paintImageXObjectRepeat,
+          pdfjs.OPS.paintInlineImageXObject,
+        ].filter(
+          (operator): operator is number => typeof operator === "number",
+        ),
+      };
 
-      setProgress("Extrayendo contenido de las páginas…");
-      const pagesBlocks = await Promise.all(
+      setProgress(
+        numPages > 1
+          ? `Procesando 0 de ${numPages} páginas…`
+          : "Analizando diseño de la página…",
+      );
+      const convertedPages = await Promise.all(
         Array.from({ length: numPages }, async (_, index) => {
           const pageNumber = index + 1;
           const page = await pdf!.getPage(pageNumber);
 
           try {
-            return buildEditablePageBlocks(
+            return await buildEditablePageSection(
               page,
               pageNumber,
-              numPages,
-              paintImageOps,
+              imageOperators,
             );
           } finally {
             page.cleanup();
+            completedPages += 1;
+            if (numPages > 1) {
+              setProgress(
+                `Procesando ${completedPages} de ${numPages} páginas…`,
+              );
+            }
           }
         }),
       );
+      const sections: ISectionOptions[] = [];
+      let pagesWithContent = 0;
 
-      for (const pageBlocks of pagesBlocks) {
-        if (pageBlocks.length === 0) {
-          continue;
+      for (const convertedPage of convertedPages) {
+        sections.push(convertedPage.section);
+        if (convertedPage.hasContent) {
+          pagesWithContent += 1;
         }
-        if (documentBlocks.length > 0) {
-          documentBlocks.push(new Paragraph({ pageBreakBefore: true }));
-        }
-        documentBlocks.push(...pageBlocks);
       }
 
-      if (documentBlocks.length === 0) {
+      if (pagesWithContent === 0) {
         throw new Error(
           "No se encontró texto ni imágenes editables. Prueba con la herramienta OCR si el PDF es un escaneo.",
         );
       }
 
+      setProgress("Empaquetando DOCX…");
       const docx = new Document({
-        sections: [{ properties: {}, children: documentBlocks }],
+        sections,
       });
 
       const blob = await Packer.toBlob(docx);
@@ -150,7 +167,7 @@ export function PdfToWordTool() {
       isProcessing={isProcessing}
       onFilesSelected={handleFilesSelected}
       emptyTitle="Selecciona un PDF"
-      emptyDescription="Genera un DOCX con texto editable e imágenes incrustadas listas para modificar en Word."
+      emptyDescription="Genera un DOCX editable con el diseño conservado lo mejor posible."
       emptyActionLabel="Seleccionar PDF"
       emptyHint="Hasta 50 MB por archivo"
       preview={
@@ -167,7 +184,7 @@ export function PdfToWordTool() {
                 <p className="mt-1 text-sm text-brand">{progress}</p>
               ) : (
                 <p className="mt-1 text-sm">
-                  Listo para generar DOCX editable.
+                  Listo para generar DOCX editable con diseño conservado.
                 </p>
               )}
             </div>
@@ -177,17 +194,17 @@ export function PdfToWordTool() {
         )
       }
       sidebarTitle="PDF a Word"
-      sidebarDescription="Texto e imágenes editables, sin capturas de página."
+      sidebarDescription="DOCX editable con diseño conservado lo mejor posible."
       sidebar={
         <div className="flex flex-col gap-3 text-sm text-muted-foreground">
           <p>
-            Extrae el texto seleccionable del PDF y las imágenes incrustadas
-            como objetos independientes en Word. Puedes editar párrafos,
-            reemplazar fotos y mover contenido libremente.
+            Reconstruye cada página con texto editable, tamaños de fuente,
+            espaciado, columnas simples e imágenes ubicadas cerca de su posición
+            original.
           </p>
           <p>
-            El diseño exacto del PDF no se conserva al píxel (tablas complejas o
-            columnas pueden reordenarse). Para PDFs escaneados sin texto, usa{" "}
+            El resultado no será idéntico al píxel en PDFs complejos con capas,
+            formas o fuentes especiales. Para PDFs escaneados sin texto, usa{" "}
             <strong className="text-foreground">OCR PDF</strong> primero.
           </p>
         </div>
