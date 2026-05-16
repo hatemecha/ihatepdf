@@ -48,7 +48,7 @@ export function HomePage() {
     <main>
       <section className="border-b border-border bg-muted/35">
         <div className="container-page py-9 text-center sm:py-11 md:py-14">
-            <div className="mx-auto flex max-w-2xl flex-col items-center gap-2.5">
+          <div className="mx-auto flex max-w-2xl flex-col items-center gap-2.5">
             <Badge
               variant="outline"
               className="inline-flex items-center gap-2 border-brand bg-card px-3 py-1 text-brand"
@@ -96,8 +96,8 @@ export function HomePage() {
               PDF online con privacidad real
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Cada herramienta —unir PDF, dividir, comprimir, convertir a Word o
-              imágenes— se ejecuta localmente. Ideal si buscas editar PDF sin
+              Cada herramienta (unir PDF, dividir, comprimir, convertir a Word o
+              imágenes) se ejecuta localmente. Ideal si buscas editar PDF sin
               subirlos a servidores de terceros.
             </p>
             <p className="mt-3">

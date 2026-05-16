@@ -85,7 +85,7 @@ function removeJsonLd(): void {
   document.getElementById(JSON_LD_ID)?.remove();
 }
 
-export interface PageSeoSnapshot {
+interface PageSeoSnapshot {
   documentTitle: string;
   metaContents: Map<string, string>;
   canonicalHref: string | null;
@@ -104,8 +104,7 @@ function captureSnapshot(): PageSeoSnapshot {
   return {
     documentTitle: document.title,
     metaContents,
-    canonicalHref:
-      canonical instanceof HTMLLinkElement ? canonical.href : null,
+    canonicalHref: canonical instanceof HTMLLinkElement ? canonical.href : null,
     hadJsonLd: Boolean(document.getElementById(JSON_LD_ID)),
   };
 }
@@ -159,7 +158,12 @@ export function applyPageSeo(
   upsertMeta("property", "og:type", "website", META_IDS.ogType);
   upsertMeta("property", "og:locale", "es_ES", META_IDS.ogLocale);
   upsertMeta("property", "og:site_name", SITE_NAME, META_IDS.ogSiteName);
-  upsertMeta("name", "twitter:card", "summary_large_image", META_IDS.twitterCard);
+  upsertMeta(
+    "name",
+    "twitter:card",
+    "summary_large_image",
+    META_IDS.twitterCard,
+  );
   upsertMeta("name", "twitter:title", pageTitle, META_IDS.twitterTitle);
   upsertMeta(
     "name",
@@ -167,7 +171,12 @@ export function applyPageSeo(
     options.description,
     META_IDS.twitterDescription,
   );
-  upsertMeta("name", "twitter:image", context.ogImageUrl, META_IDS.twitterImage);
+  upsertMeta(
+    "name",
+    "twitter:image",
+    context.ogImageUrl,
+    META_IDS.twitterImage,
+  );
   upsertLink("canonical", context.canonicalUrl, CANONICAL_ID);
 
   if (options.jsonLd) {

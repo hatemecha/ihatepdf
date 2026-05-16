@@ -40,18 +40,26 @@ export function ExtractTextTool() {
     setErrorMessage(null);
     setDownloadResult(null);
 
-    try {
-      const pdf = await loadPdfDocument(selectedFile);
-      const textParts: string[] = [];
+    let pdf: Awaited<ReturnType<typeof loadPdfDocument>> | null = null;
 
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          .map((item) => ("str" in item ? item.str : ""))
-          .join(" ");
-        textParts.push(`--- Página ${i} ---\n${pageText}\n`);
-      }
+    try {
+      pdf = await loadPdfDocument(selectedFile);
+      const textParts = await Promise.all(
+        Array.from({ length: pdf.numPages }, async (_, index) => {
+          const pageNumber = index + 1;
+          const page = await pdf!.getPage(pageNumber);
+
+          try {
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items
+              .map((item) => ("str" in item ? item.str : ""))
+              .join(" ");
+            return `--- Página ${pageNumber} ---\n${pageText}\n`;
+          } finally {
+            page.cleanup();
+          }
+        }),
+      );
 
       const finalString = textParts.join("\n");
       const blob = new Blob([finalString], {
@@ -71,6 +79,7 @@ export function ExtractTextTool() {
         error instanceof Error ? error.message : "Error al extraer texto.",
       );
     } finally {
+      await pdf?.destroy();
       setIsProcessing(false);
     }
   }

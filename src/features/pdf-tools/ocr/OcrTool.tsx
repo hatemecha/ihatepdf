@@ -59,7 +59,7 @@ export function OcrTool() {
         page: 0,
         total: 0,
         status:
-          "Cargando modelo Tesseract (puede tardar un poco la primera vez)...",
+          "Cargando modelo Tesseract (puede tardar un poco la primera vez)…",
       });
       const worker = await createWorker("spa+eng");
 
@@ -67,16 +67,21 @@ export function OcrTool() {
       setProgress({
         page: 0,
         total: pdf.numPages,
-        status: "Preparando páginas...",
+        status: "Preparando páginas…",
       });
 
-      let finalString = "";
+      async function recognizePage(
+        pageNumber: number,
+        accumulatedText: string,
+      ): Promise<string> {
+        if (pageNumber > pdf!.numPages) {
+          return accumulatedText;
+        }
 
-      for (let i = 1; i <= pdf.numPages; i++) {
         setProgress({
-          page: i,
+          page: pageNumber,
           total: pdf.numPages,
-          status: "Renderizando página a imagen...",
+          status: "Renderizando página a imagen…",
         });
 
         const canvas = document.createElement("canvas");
@@ -84,7 +89,7 @@ export function OcrTool() {
         // Render at a decent scale for OCR, e.g. targetWidth 1600
         const renderHandle = renderPdfPageToCanvas({
           pdf,
-          pageNumber: i,
+          pageNumber,
           canvas,
           targetWidth: 1600,
         });
@@ -92,16 +97,21 @@ export function OcrTool() {
         await renderHandle.promise;
 
         setProgress({
-          page: i,
+          page: pageNumber,
           total: pdf.numPages,
-          status: "Ejecutando OCR (esto puede tardar unos segundos)...",
+          status: "Ejecutando OCR (esto puede tardar unos segundos)…",
         });
         const {
           data: { text },
         } = await worker.recognize(canvas);
 
-        finalString += `--- Página ${i} ---\n${text}\n\n`;
+        return recognizePage(
+          pageNumber + 1,
+          `${accumulatedText}--- Página ${pageNumber} ---\n${text}\n\n`,
+        );
       }
+
+      const finalString = await recognizePage(1, "");
 
       await worker.terminate();
 
@@ -157,7 +167,7 @@ export function OcrTool() {
       ) : (
         <ScanText data-icon="inline-start" aria-hidden />
       )}
-      {isProcessing ? "Procesando..." : "Ejecutar OCR local"}
+      {isProcessing ? "Procesando…" : "Ejecutar OCR local"}
     </Button>
   );
 
@@ -177,7 +187,7 @@ export function OcrTool() {
             <div className="flex h-full flex-col bg-card rounded-xl border overflow-hidden">
               <div className="shrink-0 border-b border-border flex items-center justify-between px-4 py-2">
                 <span className="text-xs font-medium text-muted-foreground">
-                  {selectedFile.name} — Texto extraído
+                  {selectedFile.name}: Texto extraído
                 </span>
                 <button
                   type="button"

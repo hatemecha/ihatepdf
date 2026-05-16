@@ -60,16 +60,26 @@ export function ExtractImagesTool() {
         pdfjs.OPS.paintImageXObjectRepeat,
       ] as const;
 
-      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-        const page = await pdf.getPage(pageNumber);
-        try {
-          const images = await extractPageEmbeddedImages(page, paintImageOps);
-          for (const image of images) {
-            imageCount += 1;
-            zip.file(`image-${pageNumber}-${imageCount}.png`, image.data);
+      const pagesImages = await Promise.all(
+        Array.from({ length: pdf.numPages }, async (_, index) => {
+          const pageNumber = index + 1;
+          const page = await pdf!.getPage(pageNumber);
+
+          try {
+            return {
+              pageNumber,
+              images: await extractPageEmbeddedImages(page, paintImageOps),
+            };
+          } finally {
+            page.cleanup();
           }
-        } finally {
-          page.cleanup();
+        }),
+      );
+
+      for (const { pageNumber, images } of pagesImages) {
+        for (const image of images) {
+          imageCount += 1;
+          zip.file(`image-${pageNumber}-${imageCount}.png`, image.data);
         }
       }
 

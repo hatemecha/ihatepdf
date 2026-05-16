@@ -94,12 +94,13 @@ export async function extractPageEmbeddedImages(
   paintImageOps: readonly number[],
 ): Promise<ExtractedPdfImage[]> {
   const operatorList = await page.getOperatorList();
+  const paintImageOpSet = new Set(paintImageOps);
   const seenObjectIds = new Set<string>();
-  const images: ExtractedPdfImage[] = [];
+  const objectIds: string[] = [];
 
   for (let index = 0; index < operatorList.fnArray.length; index += 1) {
     const operator = operatorList.fnArray[index];
-    if (!paintImageOps.includes(operator)) {
+    if (!paintImageOpSet.has(operator)) {
       continue;
     }
 
@@ -108,21 +109,23 @@ export async function extractPageEmbeddedImages(
       continue;
     }
     seenObjectIds.add(objectId);
-
-    try {
-      const imageObject = await resolvePaintedImage(page, objectId);
-      if (!imageObject) {
-        continue;
-      }
-
-      const pngImage = await imageObjectToPngBytes(imageObject);
-      if (pngImage) {
-        images.push(pngImage);
-      }
-    } catch {
-      // Skip images that cannot be decoded in this environment.
-    }
+    objectIds.push(objectId);
   }
 
-  return images;
+  const images = await Promise.all(
+    objectIds.map(async (objectId) => {
+      try {
+        const imageObject = await resolvePaintedImage(page, objectId);
+        if (!imageObject) {
+          return null;
+        }
+
+        return imageObjectToPngBytes(imageObject);
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  return images.flatMap((image) => (image ? [image] : []));
 }

@@ -1,14 +1,7 @@
-import {
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
-import { ExperimentalToolBadge } from "@/components/ExperimentalToolBadge";
 import { Button } from "@/components/ui/button";
 import {
   AdvancedPdfTool,
@@ -41,17 +34,10 @@ import { OfficeToPdfTool } from "@/features/pdf-tools/convert/OfficeToPdfTool";
 import { RepairPdfTool } from "@/features/pdf-tools/repair/RepairPdfTool";
 import { FormsPdfTool } from "@/features/pdf-tools/forms/FormsPdfTool";
 import { usePageSeo } from "@/hooks/usePageSeo";
-import {
-  buildToolPageDescription,
-  buildToolPageTitle,
-} from "@/lib/seo";
+import { buildToolPageDescription, buildToolPageTitle } from "@/lib/seo";
 import { buildToolStructuredData } from "@/lib/seoStructuredData";
 import { NotFoundPage } from "@/pages/NotFoundPage";
-import {
-  getToolBySlug,
-  isExperimentalTool,
-  type Tool,
-} from "@/tools/toolCatalog";
+import { getToolBySlug, type Tool } from "@/tools/toolCatalog";
 
 export function ToolPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -135,9 +121,7 @@ export function ToolPage() {
 
   return (
     <main className="flex h-full min-h-0 flex-col overflow-hidden">
-      <h1 className="sr-only">
-        {tool.name} online gratis — iHatePDF
-      </h1>
+      <h1 className="sr-only">{tool.name} online gratis, iHatePDF</h1>
       <ToolHeader tool={tool} actions={headerActions} />
       <div className="container-tool min-h-0 flex-1 overflow-hidden pb-4 pt-3">
         {tool.implementation === "merge-pdfs" ? <MergePdfTool /> : null}
@@ -218,7 +202,6 @@ function ToolHeader({ tool, actions }: ToolHeaderProps) {
               aria-hidden
             />
             <span className="truncate text-sm font-medium">{tool.name}</span>
-            {isExperimentalTool(tool) ? <ExperimentalToolBadge /> : null}
           </div>
         </div>
         {actions ? (

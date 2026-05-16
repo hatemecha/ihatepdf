@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  OFFICE_CONVERSION_SLUGS,
-  getAllTools,
-  isExperimentalTool,
-  searchTools,
-} from "./toolCatalog";
+import { getAllTools, searchTools } from "./toolCatalog";
 
 describe("toolCatalog search", () => {
   it("returns all tools for empty query", () => {
@@ -27,11 +22,17 @@ describe("toolCatalog search", () => {
     ).toBe(true);
   });
 
-  it("marks office conversion tools as experimental", () => {
-    for (const slug of OFFICE_CONVERSION_SLUGS) {
-      const tool = getAllTools().find((entry) => entry.slug === slug);
-      expect(tool).toBeDefined();
-      expect(isExperimentalTool(tool!)).toBe(true);
+  it("keeps office conversion tools available", () => {
+    const toolsBySlug = new Map(getAllTools().map((tool) => [tool.slug, tool]));
+
+    for (const slug of [
+      "pdf-to-word",
+      "pdf-to-excel",
+      "pdf-to-powerpoint",
+      "office-to-pdf",
+    ]) {
+      const tool = toolsBySlug.get(slug);
+      expect(tool?.status).toBe("available");
     }
   });
 });

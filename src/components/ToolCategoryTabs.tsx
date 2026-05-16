@@ -127,15 +127,24 @@ export function ToolCategoryTabs() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<CategoryFilter>("all");
   const visibleCategories = getVisibleToolCategories();
-  const matchingTools = searchTools(searchQuery);
-  const hasAnyTools = visibleCategories.some((category) =>
-    filterToolsForCategory(matchingTools, category.id),
+  const normalizedSearchQuery = searchQuery.trim();
+  const isSearching = normalizedSearchQuery.length > 0;
+  const matchingTools = searchTools(normalizedSearchQuery);
+  const hasAnyTools = visibleCategories.some(
+    (category) => filterToolsForCategory(matchingTools, category.id).length > 0,
   );
 
   const categoriesToShow =
     activeFilter === "all"
       ? visibleCategories
       : visibleCategories.filter((category) => category.id === activeFilter);
+
+  function handleSearchFocus() {
+    document.getElementById("herramientas")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
 
   return (
     <div className="w-full">
@@ -153,56 +162,81 @@ export function ToolCategoryTabs() {
         <ToolSearchField
           className="max-w-xl"
           placeholder="Ej.: unir, comprimir, word, firmar…"
+          onFocus={handleSearchFocus}
           onChange={setSearchQuery}
         />
 
-        <div
-          role="group"
-          aria-label="Filtrar por tipo de tarea"
-          className="flex max-w-full flex-wrap justify-center gap-2 px-1"
-        >
-          <CategoryFilterChip
-            active={activeFilter === "all"}
-            label="Ver todo"
-            count={matchingTools.length}
-            onClick={() => setActiveFilter("all")}
-          />
-          {visibleCategories.map((category) => (
+        {!isSearching ? (
+          <div
+            role="group"
+            aria-label="Filtrar por tipo de tarea"
+            className="flex max-w-full flex-wrap justify-center gap-2 px-1"
+          >
             <CategoryFilterChip
-              key={category.id}
-              active={activeFilter === category.id}
-              label={category.label}
-              count={filterToolsForCategory(matchingTools, category.id).length}
-              onClick={() => setActiveFilter(category.id)}
+              active={activeFilter === "all"}
+              label="Ver todo"
+              count={matchingTools.length}
+              onClick={() => setActiveFilter("all")}
             />
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-12 space-y-14 md:mt-14 md:space-y-16">
-        {!hasAnyTools ? (
-          <p className="text-center text-base text-muted-foreground">
-            {searchQuery
-              ? `No hay herramientas que coincidan con «${searchQuery}».`
-              : "Todavía no hay herramientas disponibles."}
-          </p>
-        ) : (
-          categoriesToShow.map((category) => {
-            const tools = filterToolsForCategory(matchingTools, category.id);
-            if (tools.length === 0 && activeFilter !== "all") {
-              return null;
-            }
-
-            return (
-              <CategorySection
+            {visibleCategories.map((category) => (
+              <CategoryFilterChip
                 key={category.id}
-                category={category}
-                tools={tools}
+                active={activeFilter === category.id}
+                label={category.label}
+                count={
+                  filterToolsForCategory(matchingTools, category.id).length
+                }
+                onClick={() => setActiveFilter(category.id)}
               />
-            );
-          })
-        )}
+            ))}
+          </div>
+        ) : null}
       </div>
+
+      {isSearching ? (
+        <div className="mt-8">
+          {matchingTools.length > 0 ? (
+            <>
+              <p className="mb-4 text-center text-sm text-muted-foreground">
+                {matchingTools.length}{" "}
+                {matchingTools.length === 1 ? "resultado" : "resultados"}
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {matchingTools.map((tool) => (
+                  <ToolCard key={tool.slug} tool={tool} />
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="text-center text-base text-muted-foreground">
+              No hay herramientas que coincidan con «{normalizedSearchQuery}».
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="mt-12 space-y-14 md:mt-14 md:space-y-16">
+          {!hasAnyTools ? (
+            <p className="text-center text-base text-muted-foreground">
+              Todavía no hay herramientas disponibles.
+            </p>
+          ) : (
+            categoriesToShow.map((category) => {
+              const tools = filterToolsForCategory(matchingTools, category.id);
+              if (tools.length === 0 && activeFilter !== "all") {
+                return null;
+              }
+
+              return (
+                <CategorySection
+                  key={category.id}
+                  category={category}
+                  tools={tools}
+                />
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }

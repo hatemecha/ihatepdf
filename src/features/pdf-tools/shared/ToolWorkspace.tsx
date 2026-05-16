@@ -8,7 +8,6 @@ import {
 } from "react";
 import { Plus, Upload } from "lucide-react";
 
-import { ExperimentalToolNotice } from "@/components/ExperimentalToolNotice";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -34,7 +33,6 @@ export interface ToolWorkspaceProps {
   };
   errorMessage?: string | null;
   resultBanner?: ReactNode;
-  experimental?: boolean;
 }
 
 export function ToolWorkspace({
@@ -56,7 +54,6 @@ export function ToolWorkspace({
   addMore,
   errorMessage,
   resultBanner,
-  experimental = false,
 }: ToolWorkspaceProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -114,8 +111,6 @@ export function ToolWorkspace({
               ) : null}
             </header>
 
-            {experimental ? <ExperimentalToolNotice /> : null}
-
             <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
               {sidebar}
             </div>
@@ -151,7 +146,6 @@ export function ToolWorkspace({
           onFilesSelected={onFilesSelected}
           onOpenPicker={openPicker}
           errorMessage={errorMessage}
-          experimental={experimental}
         />
       )}
     </div>
@@ -169,7 +163,6 @@ interface EmptyDropzoneProps {
   onFilesSelected: (files: File[]) => void;
   onOpenPicker: () => void;
   errorMessage?: string | null;
-  experimental?: boolean;
 }
 
 function EmptyDropzone({
@@ -183,7 +176,6 @@ function EmptyDropzone({
   onFilesSelected,
   onOpenPicker,
   errorMessage,
-  experimental = false,
 }: EmptyDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
 
@@ -283,9 +275,6 @@ function EmptyDropzone({
         </Button>
         {hint ? (
           <p className="text-xs text-muted-foreground sm:text-sm">{hint}</p>
-        ) : null}
-        {experimental ? (
-          <ExperimentalToolNotice className="w-full max-w-xl text-left" />
         ) : null}
         {errorMessage ? (
           <Alert variant="destructive" className="w-full max-w-xl text-left">

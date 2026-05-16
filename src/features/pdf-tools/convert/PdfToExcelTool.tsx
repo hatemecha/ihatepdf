@@ -48,39 +48,69 @@ export function PdfToExcelTool() {
       const numPages = pdf.numPages;
 
       const workbook = new ExcelJS.Workbook();
+      let extractedRows = 0;
 
-      for (let i = 1; i <= numPages; i++) {
-        const worksheet = workbook.addWorksheet(`Página ${i}`);
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
+      const pagesRows = await Promise.all(
+        Array.from({ length: numPages }, async (_, index) => {
+          const pageNumber = index + 1;
+          const page = await pdf!.getPage(pageNumber);
 
-        // Group items by Y position roughly to form rows
-        const rowsMap = new Map<number, { x: number; str: string }[]>();
+          try {
+            const textContent = await page.getTextContent();
+            const rowsMap = new Map<number, { x: number; str: string }[]>();
 
-        for (const item of textContent.items) {
-          if ("str" in item && item.str.trim() !== "") {
-            const x = item.transform[4];
-            const y = Math.round(item.transform[5] / 5) * 5; // Group by 5pt intervals
+            for (const item of textContent.items) {
+              if ("str" in item && item.str.trim() !== "") {
+                const x = item.transform[4];
+                const y = Math.round(item.transform[5] / 5) * 5;
 
-            if (!rowsMap.has(y)) {
-              rowsMap.set(y, []);
+                if (!rowsMap.has(y)) {
+                  rowsMap.set(y, []);
+                }
+                rowsMap.get(y)!.push({ x, str: item.str });
+              }
             }
-            rowsMap.get(y)!.push({ x, str: item.str });
+
+            return {
+              pageNumber,
+              rows: Array.from(rowsMap.keys())
+                .sort((a, b) => b - a)
+                .map((y) =>
+                  rowsMap
+                    .get(y)!
+                    .toSorted((a, b) => a.x - b.x)
+                    .map((item) => item.str),
+                ),
+            };
+          } finally {
+            page.cleanup();
           }
+        }),
+      );
+
+      for (const { pageNumber, rows } of pagesRows) {
+        const worksheet = workbook.addWorksheet(`Pagina ${pageNumber}`);
+
+        for (const row of rows) {
+          worksheet.addRow(row);
+          extractedRows += 1;
         }
 
-        // Sort rows by Y descending (PDF coordinates start from bottom)
-        const sortedY = Array.from(rowsMap.keys()).sort((a, b) => b - a);
+        worksheet.columns.forEach((column) => {
+          const values = Array.isArray(column.values)
+            ? column.values.slice(1)
+            : [];
+          const maxLength = values.reduce<number>((max, value) => {
+            return Math.max(max, String(value ?? "").length);
+          }, 10);
+          column.width = Math.min(Math.max(maxLength + 2, 10), 48);
+        });
+      }
 
-        for (const y of sortedY) {
-          const rowItems = rowsMap.get(y)!;
-          // Sort by X ascending
-          rowItems.sort((a, b) => a.x - b.x);
-
-          // Simple column mapping based on order
-          const rowData = rowItems.map((item) => item.str);
-          worksheet.addRow(rowData);
-        }
+      if (extractedRows === 0) {
+        throw new Error(
+          "No se encontró texto seleccionable para exportar. Si el PDF es un escaneo, usa OCR PDF primero.",
+        );
       }
 
       const excelBuffer = await workbook.xlsx.writeBuffer();
@@ -132,7 +162,6 @@ export function PdfToExcelTool() {
       accept="application/pdf,.pdf"
       hasContent={Boolean(selectedFile)}
       isProcessing={isProcessing}
-      experimental
       onFilesSelected={handleFilesSelected}
       emptyTitle="Selecciona un PDF"
       emptyDescription="Sube un archivo PDF para extraer sus datos a una hoja de cálculo Excel (.xlsx)."

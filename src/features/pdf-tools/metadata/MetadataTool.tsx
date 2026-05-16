@@ -19,6 +19,24 @@ interface Metadata {
   modificationDate: string;
 }
 
+const METADATA_DATE_FORMATTER = new Intl.DateTimeFormat("es", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+function formatMetadataDate(value: string): string {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return METADATA_DATE_FORMATTER.format(date);
+}
+
 export function MetadataTool() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -102,9 +120,7 @@ export function MetadataTool() {
             Fecha de creación
           </dt>
           <dd className="mt-1 text-sm">
-            {metadata.creationDate
-              ? new Date(metadata.creationDate).toLocaleString()
-              : "-"}
+            {formatMetadataDate(metadata.creationDate)}
           </dd>
         </div>
         <div>
@@ -112,9 +128,7 @@ export function MetadataTool() {
             Fecha de modificación
           </dt>
           <dd className="mt-1 text-sm">
-            {metadata.modificationDate
-              ? new Date(metadata.modificationDate).toLocaleString()
-              : "-"}
+            {formatMetadataDate(metadata.modificationDate)}
           </dd>
         </div>
       </dl>

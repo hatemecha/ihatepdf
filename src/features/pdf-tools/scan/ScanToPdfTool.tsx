@@ -12,9 +12,14 @@ import {
   runPdfOperation,
 } from "@/features/pdf-tools/shared/pdfOperationClient";
 
+interface ScanImage {
+  id: string;
+  file: File;
+}
+
 export function ScanToPdfTool() {
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [images, setImages] = useState<File[]>([]);
+  const [images, setImages] = useState<ScanImage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(
@@ -65,7 +70,7 @@ export function ScanToPdfTool() {
               const file = new File([blob], `scan-${images.length + 1}.jpg`, {
                 type: "image/jpeg",
               });
-              setImages((prev) => [...prev, file]);
+              setImages((prev) => [...prev, createScanImage(file)]);
             }
           },
           "image/jpeg",
@@ -88,7 +93,7 @@ export function ScanToPdfTool() {
 
     try {
       const inputFiles = await Promise.all(
-        images.map(async (file) => ({
+        images.map(async ({ file }) => ({
           name: file.name,
           mimeType: file.type,
           buffer: await file.arrayBuffer(),
@@ -158,7 +163,9 @@ export function ScanToPdfTool() {
       multiple={true}
       hasContent={stream !== null || images.length > 0}
       isProcessing={isProcessing}
-      onFilesSelected={(files) => setImages((prev) => [...prev, ...files])}
+      onFilesSelected={(files) =>
+        setImages((prev) => [...prev, ...files.map(createScanImage)])
+      }
       emptyTitle="Escanear con Cámara"
       emptyDescription="Toma fotos con tu cámara y conviértelas en un solo documento PDF."
       emptyActionLabel="Abrir Cámara"
@@ -166,7 +173,7 @@ export function ScanToPdfTool() {
       preview={
         <div className="flex h-full flex-col gap-4 overflow-hidden">
           {stream ? (
-            <div className="relative flex-1 bg-black rounded-xl overflow-hidden shadow-sm border border-border/50 group">
+            <div className="relative flex-1 bg-neutral-950 rounded-xl overflow-hidden shadow-sm border border-border/50 group">
               <video
                 ref={videoRef}
                 autoPlay
@@ -181,7 +188,7 @@ export function ScanToPdfTool() {
                   size="lg"
                   variant="default"
                   onClick={captureImage}
-                  className="rounded-full h-14 w-14 p-0"
+                  className="size-14 rounded-full p-0"
                 >
                   <Camera className="size-6" />
                 </Button>
@@ -197,13 +204,13 @@ export function ScanToPdfTool() {
 
           {images.length > 0 && (
             <div className="h-32 shrink-0 border rounded-xl bg-card p-3 flex gap-3 overflow-x-auto">
-              {images.map((img, idx) => (
+              {images.map((image, idx) => (
                 <div
-                  key={idx}
+                  key={image.id}
                   className="relative h-full shrink-0 aspect-[3/4] border rounded-md overflow-hidden group"
                 >
                   <img
-                    src={URL.createObjectURL(img)}
+                    src={URL.createObjectURL(image.file)}
                     alt={`Scan ${idx + 1}`}
                     className="w-full h-full object-cover"
                   />
@@ -242,4 +249,11 @@ export function ScanToPdfTool() {
       addMore={stream ? undefined : { label: "Subir más imágenes" }}
     />
   );
+}
+
+function createScanImage(file: File): ScanImage {
+  return {
+    id: `${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
+    file,
+  };
 }

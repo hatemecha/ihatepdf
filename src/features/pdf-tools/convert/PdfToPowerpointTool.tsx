@@ -48,33 +48,70 @@ export function PdfToPowerpointTool() {
       const numPages = pdf.numPages;
 
       const pptx = new pptxgen();
+      pptx.layout = "LAYOUT_WIDE";
+      let slidesWithContent = 0;
 
-      for (let i = 1; i <= numPages; i++) {
-        const slide = pptx.addSlide();
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
+      const slideTexts = await Promise.all(
+        Array.from({ length: numPages }, async (_, index) => {
+          const page = await pdf!.getPage(index + 1);
 
-        let allText = "";
-        let currentY: number | null = null;
-        let currentLine = "";
+          try {
+            const textContent = await page.getTextContent();
+            const lines = textContent.items
+              .flatMap((item) => {
+                if (
+                  !("str" in item) ||
+                  !("transform" in item) ||
+                  !item.str.trim()
+                ) {
+                  return [];
+                }
+                return [
+                  {
+                    str: item.str.trim(),
+                    x: item.transform[4],
+                    y: Math.round(item.transform[5] / 5) * 5,
+                  },
+                ];
+              })
+              .sort((left, right) => {
+                const yDiff = right.y - left.y;
+                return Math.abs(yDiff) > 4 ? yDiff : left.x - right.x;
+              });
 
-        for (const item of textContent.items) {
-          if ("str" in item) {
-            const y = Math.round(item.transform[5] / 10) * 10;
-            if (currentY === null || Math.abs(y - currentY) < 5) {
-              currentLine += item.str + " ";
-              currentY = y;
-            } else {
-              if (currentLine.trim()) {
-                allText += currentLine.trim() + "\n";
+            const groupedLines: string[] = [];
+            let currentY: number | null = null;
+            let currentLine: string[] = [];
+
+            for (const item of lines) {
+              if (currentY === null || Math.abs(item.y - currentY) <= 4) {
+                currentLine.push(item.str);
+                currentY = item.y;
+                continue;
               }
-              currentLine = item.str + " ";
-              currentY = y;
+
+              if (currentLine.length > 0) {
+                groupedLines.push(currentLine.join(" "));
+              }
+              currentLine = [item.str];
+              currentY = item.y;
             }
+
+            if (currentLine.length > 0) {
+              groupedLines.push(currentLine.join(" "));
+            }
+
+            return groupedLines.join("\n").trim();
+          } finally {
+            page.cleanup();
           }
-        }
-        if (currentLine.trim()) {
-          allText += currentLine.trim() + "\n";
+        }),
+      );
+
+      for (const allText of slideTexts) {
+        const slide = pptx.addSlide();
+        if (allText) {
+          slidesWithContent += 1;
         }
 
         slide.addText(allText, {
@@ -84,6 +121,12 @@ export function PdfToPowerpointTool() {
           h: "90%",
           valign: "top",
         });
+      }
+
+      if (slidesWithContent === 0) {
+        throw new Error(
+          "No se encontró texto seleccionable para crear diapositivas. Si el PDF es un escaneo, usa OCR PDF primero.",
+        );
       }
 
       const pptxBuffer = (await pptx.write({
@@ -141,7 +184,6 @@ export function PdfToPowerpointTool() {
       accept="application/pdf,.pdf"
       hasContent={Boolean(selectedFile)}
       isProcessing={isProcessing}
-      experimental
       onFilesSelected={handleFilesSelected}
       emptyTitle="Selecciona un PDF"
       emptyDescription="Sube un archivo PDF para extraer sus páginas a diapositivas PowerPoint (.pptx)."

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useReducer } from "react";
 import { PenTool, Loader2, Image as ImageIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -14,22 +14,102 @@ import {
   runPdfOperation,
 } from "@/features/pdf-tools/shared/pdfOperationClient";
 
+interface SignPdfState {
+  selectedFile: File | null;
+  signatureImage: File | null;
+  pageCount: number;
+  page: number;
+  xPos: number;
+  yPos: number;
+  width: number;
+  height: number;
+  isProcessing: boolean;
+  errorMessage: string | null;
+  downloadResult: DownloadResult | null;
+}
+
+type SignatureOptionsPatch = Partial<
+  Pick<SignPdfState, "page" | "xPos" | "yPos" | "width" | "height">
+>;
+
+type SignPdfAction =
+  | { type: "start-file-load" }
+  | { type: "file-loaded"; file: File; pageCount: number }
+  | { type: "signature-selected"; file: File }
+  | { type: "clear-signature" }
+  | { type: "signature-options"; patch: SignatureOptionsPatch }
+  | { type: "start-processing" }
+  | { type: "finish-processing" }
+  | { type: "download-ready"; result: DownloadResult }
+  | { type: "error"; message: string };
+
+const initialSignPdfState: SignPdfState = {
+  selectedFile: null,
+  signatureImage: null,
+  pageCount: 0,
+  page: 1,
+  xPos: 50,
+  yPos: 50,
+  width: 100,
+  height: 50,
+  isProcessing: false,
+  errorMessage: null,
+  downloadResult: null,
+};
+
+function signPdfReducer(
+  state: SignPdfState,
+  action: SignPdfAction,
+): SignPdfState {
+  switch (action.type) {
+    case "start-file-load":
+      return { ...state, errorMessage: null, downloadResult: null };
+    case "file-loaded":
+      return {
+        ...state,
+        selectedFile: action.file,
+        pageCount: action.pageCount,
+        page: Math.min(state.page, action.pageCount),
+      };
+    case "signature-selected":
+      return { ...state, signatureImage: action.file, errorMessage: null };
+    case "clear-signature":
+      return { ...state, signatureImage: null };
+    case "signature-options":
+      return { ...state, ...action.patch };
+    case "start-processing":
+      return {
+        ...state,
+        isProcessing: true,
+        errorMessage: null,
+        downloadResult: null,
+      };
+    case "finish-processing":
+      return { ...state, isProcessing: false };
+    case "download-ready":
+      return { ...state, downloadResult: action.result };
+    case "error":
+      return { ...state, errorMessage: action.message };
+    default:
+      return state;
+  }
+}
+
 export function SignPdfTool() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [signatureImage, setSignatureImage] = useState<File | null>(null);
-  const [pageCount, setPageCount] = useState(0);
-
-  const [page, setPage] = useState(1);
-  const [xPos, setXPos] = useState(50);
-  const [yPos, setYPos] = useState(50);
-  const [width, setWidth] = useState(100);
-  const [height, setHeight] = useState(50);
-
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(
-    null,
-  );
+  const [state, dispatch] = useReducer(signPdfReducer, initialSignPdfState);
+  const {
+    selectedFile,
+    signatureImage,
+    pageCount,
+    page,
+    xPos,
+    yPos,
+    width,
+    height,
+    isProcessing,
+    errorMessage,
+    downloadResult,
+  } = state;
 
   async function handleFilesSelected(files: File[]) {
     const file = files[0];
@@ -37,38 +117,42 @@ export function SignPdfTool() {
 
     const validation = validateSinglePdfFile(file);
     if (!validation.isValid) {
-      setErrorMessage(validation.errors[0] ?? "No se pudo leer el PDF.");
+      dispatch({
+        type: "error",
+        message: validation.errors[0] ?? "No se pudo leer el PDF.",
+      });
       return;
     }
 
-    setErrorMessage(null);
-    setDownloadResult(null);
+    dispatch({ type: "start-file-load" });
 
     try {
       const count = await getPdfPageCount(file);
-      setPageCount(count);
-      setSelectedFile(file);
+      dispatch({ type: "file-loaded", file, pageCount: count });
     } catch {
-      setErrorMessage("Error al contar las páginas del PDF.");
+      dispatch({
+        type: "error",
+        message: "Error al contar las páginas del PDF.",
+      });
     }
   }
 
   function handleSignatureUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file && (file.type === "image/png" || file.type === "image/jpeg")) {
-      setSignatureImage(file);
-      setErrorMessage(null);
+      dispatch({ type: "signature-selected", file });
     } else {
-      setErrorMessage("La firma debe ser una imagen PNG o JPG.");
+      dispatch({
+        type: "error",
+        message: "La firma debe ser una imagen PNG o JPG.",
+      });
     }
   }
 
   async function handleSignPdf() {
     if (!selectedFile || !signatureImage) return;
 
-    setIsProcessing(true);
-    setErrorMessage(null);
-    setDownloadResult(null);
+    dispatch({ type: "start-processing" });
 
     try {
       const pdfBuffer = await selectedFile.arrayBuffer();
@@ -91,21 +175,26 @@ export function SignPdfTool() {
       if (result.kind === "file") {
         const blob = new Blob([result.buffer], { type: result.mimeType });
         const url = URL.createObjectURL(blob);
-        setDownloadResult({
-          url,
-          fileName: selectedFile.name.replace(/\.pdf$/i, "") + "-firmado.pdf",
-          mimeType: result.mimeType,
+        dispatch({
+          type: "download-ready",
+          result: {
+            url,
+            fileName: selectedFile.name.replace(/\.pdf$/i, "") + "-firmado.pdf",
+            mimeType: result.mimeType,
+          },
         });
       } else {
         throw new Error("Respuesta inesperada");
       }
       worker.terminate();
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Error al firmar PDF.",
-      );
+      dispatch({
+        type: "error",
+        message:
+          error instanceof Error ? error.message : "Error al firmar PDF.",
+      });
     } finally {
-      setIsProcessing(false);
+      dispatch({ type: "finish-processing" });
     }
   }
 
@@ -182,7 +271,12 @@ export function SignPdfTool() {
                         min={1}
                         max={pageCount}
                         value={page}
-                        onChange={(e) => setPage(parseInt(e.target.value) || 1)}
+                        onChange={(e) =>
+                          dispatch({
+                            type: "signature-options",
+                            patch: { page: parseInt(e.target.value) || 1 },
+                          })
+                        }
                         className="border rounded px-2 py-1 bg-background text-foreground"
                       />
                     </label>
@@ -192,7 +286,12 @@ export function SignPdfTool() {
                       <input
                         type="number"
                         value={xPos}
-                        onChange={(e) => setXPos(parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          dispatch({
+                            type: "signature-options",
+                            patch: { xPos: parseInt(e.target.value) || 0 },
+                          })
+                        }
                         className="border rounded px-2 py-1 bg-background text-foreground"
                       />
                     </label>
@@ -201,7 +300,12 @@ export function SignPdfTool() {
                       <input
                         type="number"
                         value={yPos}
-                        onChange={(e) => setYPos(parseInt(e.target.value) || 0)}
+                        onChange={(e) =>
+                          dispatch({
+                            type: "signature-options",
+                            patch: { yPos: parseInt(e.target.value) || 0 },
+                          })
+                        }
                         className="border rounded px-2 py-1 bg-background text-foreground"
                       />
                     </label>
@@ -211,7 +315,10 @@ export function SignPdfTool() {
                         type="number"
                         value={width}
                         onChange={(e) =>
-                          setWidth(parseInt(e.target.value) || 0)
+                          dispatch({
+                            type: "signature-options",
+                            patch: { width: parseInt(e.target.value) || 0 },
+                          })
                         }
                         className="border rounded px-2 py-1 bg-background text-foreground"
                       />
@@ -222,7 +329,10 @@ export function SignPdfTool() {
                         type="number"
                         value={height}
                         onChange={(e) =>
-                          setHeight(parseInt(e.target.value) || 0)
+                          dispatch({
+                            type: "signature-options",
+                            patch: { height: parseInt(e.target.value) || 0 },
+                          })
                         }
                         className="border rounded px-2 py-1 bg-background text-foreground"
                       />
@@ -232,7 +342,7 @@ export function SignPdfTool() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSignatureImage(null)}
+                  onClick={() => dispatch({ type: "clear-signature" })}
                 >
                   Cambiar firma
                 </Button>

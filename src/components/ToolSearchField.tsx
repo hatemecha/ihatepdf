@@ -5,12 +5,14 @@ import { cn } from "@/lib/utils";
 
 interface ToolSearchFieldProps {
   onChange: (value: string) => void;
+  onFocus?: () => void;
   className?: string;
   placeholder?: string;
 }
 
 export function ToolSearchField({
   onChange,
+  onFocus,
   className,
   placeholder = "Buscar herramienta…",
 }: ToolSearchFieldProps) {
@@ -50,6 +52,7 @@ export function ToolSearchField({
         type="search"
         value={draft}
         onChange={(event) => handleChange(event.target.value)}
+        onFocus={onFocus}
         placeholder={placeholder}
         aria-label="Buscar herramienta"
         className="field-input h-11 w-full rounded-full pr-10 pl-10 text-sm focus-visible:shadow-none"

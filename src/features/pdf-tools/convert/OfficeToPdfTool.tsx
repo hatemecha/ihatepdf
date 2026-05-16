@@ -12,6 +12,27 @@ import {
   type DownloadResult,
 } from "@/features/pdf-tools/shared/DownloadReadyBanner";
 
+const SUPPORTED_OFFICE_EXTENSIONS = ["docx", "xlsx", "pptx"] as const;
+const MAX_OFFICE_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+type SupportedOfficeExtension = (typeof SUPPORTED_OFFICE_EXTENSIONS)[number];
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function isSupportedOfficeExtension(
+  extension: string | undefined,
+): extension is SupportedOfficeExtension {
+  return SUPPORTED_OFFICE_EXTENSIONS.includes(
+    extension as SupportedOfficeExtension,
+  );
+}
+
 export function OfficeToPdfTool() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -27,8 +48,12 @@ export function OfficeToPdfTool() {
     if (!file) return;
 
     const ext = file.name.split(".").pop()?.toLowerCase();
-    if (!["docx", "xlsx", "pptx"].includes(ext || "")) {
+    if (!isSupportedOfficeExtension(ext)) {
       setErrorMessage("Por favor selecciona un archivo .docx, .xlsx o .pptx");
+      return;
+    }
+    if (file.size > MAX_OFFICE_FILE_SIZE_BYTES) {
+      setErrorMessage("El archivo supera el límite de 50 MB.");
       return;
     }
 
@@ -59,11 +84,11 @@ export function OfficeToPdfTool() {
         htmlContent = `<div style="padding: 20px; font-family: sans-serif;">`;
 
         workbook.eachSheet((worksheet) => {
-          htmlContent += `<h2>${worksheet.name}</h2><table border="1" style="border-collapse: collapse; width: 100%; margin-bottom: 20px;">`;
+          htmlContent += `<h2>${escapeHtml(worksheet.name)}</h2><table border="1" style="border-collapse: collapse; width: 100%; margin-bottom: 20px;">`;
           worksheet.eachRow((row) => {
             htmlContent += `<tr>`;
             row.eachCell((cell) => {
-              htmlContent += `<td style="padding: 5px;">${cell.text}</td>`;
+              htmlContent += `<td style="padding: 5px;">${escapeHtml(cell.text)}</td>`;
             });
             htmlContent += `</tr>`;
           });
@@ -84,20 +109,24 @@ export function OfficeToPdfTool() {
           return numA - numB;
         });
 
-        for (const slideFile of slideFiles) {
-          const xmlText = await zip.files[slideFile].async("text");
-          const parser = new DOMParser();
-          const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-          const texts = Array.from(xmlDoc.getElementsByTagName("a:t"))
-            .map((node) => node.textContent)
-            .filter(Boolean);
+        const slideHtml = await Promise.all(
+          slideFiles.map(async (slideFile) => {
+            const xmlText = await zip.files[slideFile].async("text");
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+            const texts = Array.from(
+              xmlDoc.getElementsByTagName("a:t"),
+            ).flatMap((node) => (node.textContent ? [node.textContent] : []));
 
-          htmlContent += `<div style="border: 1px solid #ccc; padding: 20px; margin-bottom: 20px; aspect-ratio: 16/9; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 24px; page-break-after: always;">`;
-          for (const text of texts) {
-            htmlContent += `<p>${text}</p>`;
-          }
-          htmlContent += `</div>`;
-        }
+            let content = `<div style="border: 1px solid #ccc; padding: 20px; margin-bottom: 20px; aspect-ratio: 16/9; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 24px; page-break-after: always;">`;
+            for (const text of texts) {
+              content += `<p>${escapeHtml(text)}</p>`;
+            }
+            content += `</div>`;
+            return content;
+          }),
+        );
+        htmlContent += slideHtml.join("");
         htmlContent += `</div>`;
       }
 
@@ -129,13 +158,14 @@ export function OfficeToPdfTool() {
         fileName: opt.filename,
         mimeType: "application/pdf",
       });
-
-      hiddenContainerRef.current.innerHTML = "";
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "Error al convertir a PDF.",
       );
     } finally {
+      if (hiddenContainerRef.current) {
+        hiddenContainerRef.current.innerHTML = "";
+      }
       setIsProcessing(false);
     }
   }
@@ -167,7 +197,6 @@ export function OfficeToPdfTool() {
       accept=".docx,.xlsx,.pptx"
       hasContent={Boolean(selectedFile)}
       isProcessing={isProcessing}
-      experimental
       onFilesSelected={handleFilesSelected}
       emptyTitle="Selecciona un archivo Office"
       emptyDescription="Sube un archivo Word (.docx), Excel (.xlsx) o PowerPoint (.pptx)."
@@ -176,15 +205,18 @@ export function OfficeToPdfTool() {
       preview={
         selectedFile ? (
           <div className="flex h-full items-center justify-center bg-card rounded-xl border flex-col gap-4 text-muted-foreground p-8 text-center">
-            <FileUp className="size-16 opacity-50 text-indigo-500" />
+            <FileUp className="size-16 opacity-50 text-brand" />
             <div>
               <p className="font-medium text-foreground">{selectedFile.name}</p>
               <p className="text-sm">
                 Listo para convertir a PDF de forma local.
               </p>
             </div>
-            {/* Hidden container for HTML to PDF generation */}
-            <div ref={hiddenContainerRef} style={{ display: "none" }} />
+            <div
+              ref={hiddenContainerRef}
+              aria-hidden="true"
+              className="pointer-events-none fixed left-[-10000px] top-0 w-[794px] bg-white text-black"
+            />
           </div>
         ) : (
           <div />

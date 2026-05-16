@@ -10,18 +10,6 @@ export const SITE_TAGLINE =
   "Herramientas PDF gratis en el navegador, sin subir archivos";
 export const SITE_DESCRIPTION =
   "Une, divide, comprime y convierte PDFs en tu navegador. iHatePDF es gratis, privado y no requiere cuenta: tus archivos no salen de tu dispositivo.";
-export const SITE_KEYWORDS = [
-  "ihatepdf",
-  "herramientas pdf online",
-  "editar pdf sin subir",
-  "unir pdf gratis",
-  "comprimir pdf navegador",
-  "dividir pdf online",
-  "pdf privado local",
-  "alternativa pdf gratis",
-  "convertir pdf word",
-  "pdf a imagenes",
-].join(", ");
 
 export const REPO_URL = "https://github.com/hatemecha/iHatePDF";
 

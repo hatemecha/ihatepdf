@@ -79,19 +79,6 @@ export interface Tool {
   implementation: ToolImplementation;
   icon: LucideIcon;
   highlight?: boolean;
-  /** Office conversions not fully QA'd yet. */
-  experimental?: boolean;
-}
-
-export const OFFICE_CONVERSION_SLUGS = [
-  "pdf-to-word",
-  "pdf-to-excel",
-  "pdf-to-powerpoint",
-  "office-to-pdf",
-] as const;
-
-export function isExperimentalTool(tool: Tool): boolean {
-  return tool.experimental === true;
 }
 
 const TOOL_CATEGORIES: ToolCategory[] = [
@@ -363,7 +350,6 @@ const TOOLS: Tool[] = [
     status: "available",
     implementation: "pdf-to-word",
     icon: FileText,
-    experimental: true,
   },
   {
     slug: "pdf-to-excel",
@@ -375,7 +361,6 @@ const TOOLS: Tool[] = [
     status: "available",
     implementation: "pdf-to-excel",
     icon: Table,
-    experimental: true,
   },
   {
     slug: "pdf-to-powerpoint",
@@ -387,7 +372,6 @@ const TOOLS: Tool[] = [
     status: "available",
     implementation: "pdf-to-powerpoint",
     icon: Presentation,
-    experimental: true,
   },
   {
     slug: "office-to-pdf",
@@ -399,7 +383,6 @@ const TOOLS: Tool[] = [
     status: "available",
     implementation: "office-to-pdf",
     icon: FileUp,
-    experimental: true,
   },
   {
     slug: "repair-pdf",
@@ -507,10 +490,6 @@ export function searchTools(query: string): Tool[] {
 
 export function getToolBySlug(slug: string): Tool | undefined {
   return TOOLS.find((tool) => tool.slug === slug);
-}
-
-export function getToolsByCategory(category: ToolCategoryId): Tool[] {
-  return TOOLS.filter((tool) => tool.category === category);
 }
 
 export function getVisibleToolCategories(): ToolCategory[] {
