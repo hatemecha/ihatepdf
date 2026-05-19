@@ -360,7 +360,10 @@ function useMergePdfTool() {
   );
 
   const resultBanner = downloadResult ? (
-    <DownloadReadyBanner downloadResult={downloadResult} />
+    <DownloadReadyBanner
+      downloadResult={downloadResult}
+      onDismiss={clearResult}
+    />
   ) : null;
 
   return (

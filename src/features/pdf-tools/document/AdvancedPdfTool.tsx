@@ -794,7 +794,10 @@ function useAdvancedPdfToolController(config: AdvancedPdfOperationConfig) {
   );
 
   const resultBanner = downloadResult ? (
-    <DownloadReadyBanner downloadResult={downloadResult} />
+    <DownloadReadyBanner
+      downloadResult={downloadResult}
+      onDismiss={clearDownloadResult}
+    />
   ) : null;
 
   return {

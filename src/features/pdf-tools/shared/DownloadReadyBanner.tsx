@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Download } from "lucide-react";
+import { Download, X } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -13,21 +13,25 @@ export interface DownloadResult {
 
 interface DownloadReadyBannerProps {
   downloadResult: DownloadResult;
+  onDismiss: () => void;
 }
 
 export function DownloadReadyBanner({
   downloadResult,
+  onDismiss,
 }: DownloadReadyBannerProps) {
   return (
     <DownloadReadyBannerContent
       key={downloadResult.fileName}
       downloadResult={downloadResult}
+      onDismiss={onDismiss}
     />
   );
 }
 
 function DownloadReadyBannerContent({
   downloadResult,
+  onDismiss,
 }: DownloadReadyBannerProps) {
   const fileNameInputRef = useRef<HTMLInputElement>(null);
 
@@ -42,7 +46,17 @@ function DownloadReadyBannerContent({
   }
 
   return (
-    <Alert variant="brand" role="status">
+    <Alert variant="brand" role="status" className="pr-12">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="absolute right-3 top-3 size-7 rounded-full"
+        aria-label="Cerrar"
+        onClick={onDismiss}
+      >
+        <X className="size-3.5" aria-hidden />
+      </Button>
       <Download />
       <AlertTitle>Archivo listo</AlertTitle>
       <AlertDescription>

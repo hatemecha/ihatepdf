@@ -141,7 +141,10 @@ export function ExtractTextTool() {
       errorMessage={errorMessage}
       resultBanner={
         downloadResult ? (
-          <DownloadReadyBanner downloadResult={downloadResult} />
+          <DownloadReadyBanner
+            downloadResult={downloadResult}
+            onDismiss={() => setDownloadResult(null)}
+          />
         ) : null
       }
     />

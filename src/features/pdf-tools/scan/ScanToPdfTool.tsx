@@ -243,7 +243,10 @@ export function ScanToPdfTool() {
       errorMessage={errorMessage}
       resultBanner={
         downloadResult ? (
-          <DownloadReadyBanner downloadResult={downloadResult} />
+          <DownloadReadyBanner
+            downloadResult={downloadResult}
+            onDismiss={() => setDownloadResult(null)}
+          />
         ) : null
       }
       addMore={stream ? undefined : { label: "Subir más imágenes" }}

@@ -1,15 +1,162 @@
 import { useState } from "react";
-import { Table, Loader2 } from "lucide-react";
+import { Loader2, Table } from "lucide-react";
 import ExcelJS from "exceljs";
 
 import { Button } from "@/components/ui/button";
-import { ToolWorkspace } from "@/features/pdf-tools/shared/ToolWorkspace";
-import { validateSinglePdfFile } from "@/features/pdf-tools/shared/fileValidation";
-import { loadPdfDocument } from "@/features/pdf-tools/shared/pdfPreview";
+import {
+  extractPositionedTextLines,
+  type PositionedTextLine,
+} from "@/features/pdf-tools/convert/pdfToWordConversion";
 import {
   DownloadReadyBanner,
   type DownloadResult,
 } from "@/features/pdf-tools/shared/DownloadReadyBanner";
+import { validateSinglePdfFile } from "@/features/pdf-tools/shared/fileValidation";
+import { loadPdfDocument } from "@/features/pdf-tools/shared/pdfPreview";
+import { ToolWorkspace } from "@/features/pdf-tools/shared/ToolWorkspace";
+
+interface SpreadsheetCell {
+  value: string;
+  fontSize: number;
+  bold: boolean;
+  italic: boolean;
+  fontFamily?: string;
+}
+
+interface SpreadsheetRow {
+  cells: SpreadsheetCell[];
+}
+
+const COLUMN_CLUSTER_TOLERANCE = 18;
+const MAX_WORKSHEET_NAME_LENGTH = 31;
+
+function createEmptyCell(): SpreadsheetCell {
+  return {
+    value: "",
+    fontSize: 12,
+    bold: false,
+    italic: false,
+  };
+}
+
+function getLineStyle(
+  line: PositionedTextLine,
+): Omit<SpreadsheetCell, "value"> {
+  const styledRun = line.runs.find((run) => run.text.trim()) ?? line.runs[0];
+
+  return {
+    fontSize: Math.max(8, Math.round(styledRun?.fontSize ?? line.fontSize)),
+    bold: styledRun?.bold ?? false,
+    italic: styledRun?.italic ?? false,
+    fontFamily: styledRun?.fontFamily,
+  };
+}
+
+function getColumnAnchors(lines: readonly PositionedTextLine[]): number[] {
+  const rawAnchors: number[] = [];
+
+  for (const line of lines) {
+    if (line.columnXs.length > 1) {
+      rawAnchors.push(...line.columnXs);
+    } else {
+      rawAnchors.push(line.x);
+    }
+  }
+
+  const anchors: number[] = [];
+  for (const x of rawAnchors.toSorted((left, right) => left - right)) {
+    const lastAnchor = anchors[anchors.length - 1];
+    if (
+      lastAnchor === undefined ||
+      Math.abs(lastAnchor - x) > COLUMN_CLUSTER_TOLERANCE
+    ) {
+      anchors.push(x);
+    } else {
+      anchors[anchors.length - 1] = (lastAnchor + x) / 2;
+    }
+  }
+
+  return anchors.length > 0 ? anchors : [0];
+}
+
+function findNearestColumnIndex(anchors: readonly number[], x: number): number {
+  let bestIndex = 0;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (let index = 0; index < anchors.length; index += 1) {
+    const distance = Math.abs(anchors[index] - x);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  }
+
+  return bestIndex;
+}
+
+function buildSpreadsheetRows(
+  lines: readonly PositionedTextLine[],
+): SpreadsheetRow[] {
+  const anchors = getColumnAnchors(lines);
+
+  return lines.map((line) => {
+    const rowCells = Array.from({ length: anchors.length }, createEmptyCell);
+    const style = getLineStyle(line);
+    const values = line.cells.length > 0 ? line.cells : [line.text];
+    const valueAnchors =
+      line.columnXs.length === values.length ? line.columnXs : [line.x];
+
+    values.forEach((value, index) => {
+      const columnIndex = findNearestColumnIndex(
+        anchors,
+        valueAnchors[index] ?? line.x,
+      );
+      rowCells[columnIndex] = {
+        value,
+        ...style,
+      };
+    });
+
+    return { cells: rowCells };
+  });
+}
+
+function applyWorksheetLayout(
+  worksheet: ExcelJS.Worksheet,
+  rows: readonly SpreadsheetRow[],
+) {
+  worksheet.views = [{ state: "frozen", ySplit: 1 }];
+  worksheet.properties.defaultRowHeight = 18;
+
+  for (const row of rows) {
+    const worksheetRow = worksheet.addRow(row.cells.map((cell) => cell.value));
+    row.cells.forEach((cell, index) => {
+      const excelCell = worksheetRow.getCell(index + 1);
+      excelCell.alignment = {
+        vertical: "top",
+        wrapText: true,
+      };
+      excelCell.font = {
+        name: cell.fontFamily,
+        size: cell.fontSize,
+        bold: cell.bold,
+        italic: cell.italic,
+      };
+    });
+  }
+
+  worksheet.columns.forEach((column) => {
+    const values = Array.isArray(column.values) ? column.values.slice(1) : [];
+    const maxLength = values.reduce<number>((max, value) => {
+      return Math.max(max, String(value ?? "").length);
+    }, 10);
+    column.width = Math.min(Math.max(maxLength + 2, 10), 54);
+  });
+}
+
+function createWorksheetName(pageNumber: number): string {
+  return `Pagina ${pageNumber}`.slice(0, MAX_WORKSHEET_NAME_LENGTH);
+}
 
 export function PdfToExcelTool() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -18,6 +165,7 @@ export function PdfToExcelTool() {
   const [downloadResult, setDownloadResult] = useState<DownloadResult | null>(
     null,
   );
+  const [progress, setProgress] = useState<string | null>(null);
 
   function handleFilesSelected(files: File[]) {
     const file = files[0];
@@ -40,16 +188,20 @@ export function PdfToExcelTool() {
     setIsProcessing(true);
     setErrorMessage(null);
     setDownloadResult(null);
+    setProgress(null);
 
     let pdf: Awaited<ReturnType<typeof loadPdfDocument>> | null = null;
 
     try {
       pdf = await loadPdfDocument(selectedFile);
       const numPages = pdf.numPages;
+      let completedPages = 0;
 
-      const workbook = new ExcelJS.Workbook();
-      let extractedRows = 0;
-
+      setProgress(
+        numPages > 1
+          ? `Analizando 0 de ${numPages} páginas…`
+          : "Analizando tablas y columnas…",
+      );
       const pagesRows = await Promise.all(
         Array.from({ length: numPages }, async (_, index) => {
           const pageNumber = index + 1;
@@ -57,54 +209,36 @@ export function PdfToExcelTool() {
 
           try {
             const textContent = await page.getTextContent();
-            const rowsMap = new Map<number, { x: number; str: string }[]>();
-
-            for (const item of textContent.items) {
-              if ("str" in item && item.str.trim() !== "") {
-                const x = item.transform[4];
-                const y = Math.round(item.transform[5] / 5) * 5;
-
-                if (!rowsMap.has(y)) {
-                  rowsMap.set(y, []);
-                }
-                rowsMap.get(y)!.push({ x, str: item.str });
-              }
-            }
-
             return {
               pageNumber,
-              rows: Array.from(rowsMap.keys())
-                .sort((a, b) => b - a)
-                .map((y) =>
-                  rowsMap
-                    .get(y)!
-                    .toSorted((a, b) => a.x - b.x)
-                    .map((item) => item.str),
-                ),
+              rows: buildSpreadsheetRows(
+                extractPositionedTextLines(textContent),
+              ),
             };
           } finally {
             page.cleanup();
+            completedPages += 1;
+            if (numPages > 1) {
+              setProgress(
+                `Analizando ${completedPages} de ${numPages} páginas…`,
+              );
+            }
           }
         }),
       );
 
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = "iHatePDF";
+      workbook.created = new Date();
+      let extractedRows = 0;
+
+      setProgress("Construyendo hojas de cálculo…");
       for (const { pageNumber, rows } of pagesRows) {
-        const worksheet = workbook.addWorksheet(`Pagina ${pageNumber}`);
-
-        for (const row of rows) {
-          worksheet.addRow(row);
-          extractedRows += 1;
-        }
-
-        worksheet.columns.forEach((column) => {
-          const values = Array.isArray(column.values)
-            ? column.values.slice(1)
-            : [];
-          const maxLength = values.reduce<number>((max, value) => {
-            return Math.max(max, String(value ?? "").length);
-          }, 10);
-          column.width = Math.min(Math.max(maxLength + 2, 10), 48);
-        });
+        const worksheet = workbook.addWorksheet(
+          createWorksheetName(pageNumber),
+        );
+        applyWorksheetLayout(worksheet, rows);
+        extractedRows += rows.length;
       }
 
       if (extractedRows === 0) {
@@ -132,6 +266,7 @@ export function PdfToExcelTool() {
     } finally {
       await pdf?.destroy();
       setIsProcessing(false);
+      setProgress(null);
     }
   }
 
@@ -164,16 +299,22 @@ export function PdfToExcelTool() {
       isProcessing={isProcessing}
       onFilesSelected={handleFilesSelected}
       emptyTitle="Selecciona un PDF"
-      emptyDescription="Sube un archivo PDF para extraer sus datos a una hoja de cálculo Excel (.xlsx)."
+      emptyDescription="Extrae tablas y columnas del PDF a una hoja XLSX editable."
       emptyActionLabel="Seleccionar PDF"
       emptyHint="Hasta 50 MB por archivo"
       preview={
         selectedFile ? (
           <div className="flex h-full items-center justify-center bg-card rounded-xl border flex-col gap-4 text-muted-foreground p-8 text-center">
-            <Table className="size-16 opacity-50 text-green-600" />
+            {isProcessing ? (
+              <Loader2 className="size-16 animate-spin text-brand opacity-80" />
+            ) : (
+              <Table className="size-16 opacity-50 text-green-600" />
+            )}
             <div>
               <p className="font-medium text-foreground">{selectedFile.name}</p>
-              <p className="text-sm">Listo para extraer tablas a XLSX.</p>
+              <p className="text-sm">
+                {progress ?? "Listo para detectar tablas y crear XLSX."}
+              </p>
             </div>
           </div>
         ) : (
@@ -181,19 +322,27 @@ export function PdfToExcelTool() {
         )
       }
       sidebarTitle="PDF a Excel"
-      sidebarDescription="Convierte documentos PDF a hojas de cálculo localmente."
+      sidebarDescription="Tablas y columnas editables, detectadas localmente."
       sidebar={
-        <div className="text-sm text-muted-foreground">
-          Extrae los datos de tu PDF agrupándolos en filas. Ideal para tablas y
-          listados. Al ser un proceso local, el formato puede variar según la
-          complejidad del documento.
+        <div className="flex flex-col gap-3 text-sm text-muted-foreground">
+          <p>
+            Detecta columnas por coordenadas, conserva filas visibles y aplica
+            estilos básicos como tamaño, negrita e itálica.
+          </p>
+          <p>
+            Para documentos escaneados sin texto seleccionable, usa{" "}
+            <strong className="text-foreground">OCR PDF</strong> primero.
+          </p>
         </div>
       }
       primaryAction={primaryAction}
       errorMessage={errorMessage}
       resultBanner={
         downloadResult ? (
-          <DownloadReadyBanner downloadResult={downloadResult} />
+          <DownloadReadyBanner
+            downloadResult={downloadResult}
+            onDismiss={() => setDownloadResult(null)}
+          />
         ) : null
       }
     />

@@ -131,7 +131,10 @@ export function RepairPdfTool() {
       errorMessage={errorMessage}
       resultBanner={
         downloadResult ? (
-          <DownloadReadyBanner downloadResult={downloadResult} />
+          <DownloadReadyBanner
+            downloadResult={downloadResult}
+            onDismiss={() => setDownloadResult(null)}
+          />
         ) : null
       }
     />

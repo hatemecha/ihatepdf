@@ -47,7 +47,8 @@ type FormsPdfAction =
   | { type: "processingSucceeded"; result: DownloadResult }
   | { type: "processingFailed"; message: string }
   | { type: "fieldValueChanged"; name: string; value: string | boolean }
-  | { type: "flattenChanged"; flatten: boolean };
+  | { type: "flattenChanged"; flatten: boolean }
+  | { type: "downloadDismissed" };
 
 const initialFormsPdfState: FormsPdfState = {
   selectedFile: null,
@@ -113,6 +114,8 @@ function formsPdfReducer(
       };
     case "flattenChanged":
       return { ...state, flatten: action.flatten };
+    case "downloadDismissed":
+      return { ...state, downloadResult: null };
   }
 }
 
@@ -409,7 +412,10 @@ export function FormsPdfTool() {
       errorMessage={state.errorMessage}
       resultBanner={
         state.downloadResult ? (
-          <DownloadReadyBanner downloadResult={state.downloadResult} />
+          <DownloadReadyBanner
+            downloadResult={state.downloadResult}
+            onDismiss={() => dispatch({ type: "downloadDismissed" })}
+          />
         ) : null
       }
     />

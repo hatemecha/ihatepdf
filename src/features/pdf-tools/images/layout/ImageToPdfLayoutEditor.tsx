@@ -531,7 +531,10 @@ function useImageToPdfLayoutEditor({
       </div>
 
       {downloadResult ? (
-        <DownloadReadyBanner downloadResult={downloadResult} />
+        <DownloadReadyBanner
+          downloadResult={downloadResult}
+          onDismiss={() => replaceDownloadResult(null)}
+        />
       ) : null}
     </section>
   );

@@ -41,6 +41,7 @@ type SignPdfAction =
   | { type: "start-processing" }
   | { type: "finish-processing" }
   | { type: "download-ready"; result: DownloadResult }
+  | { type: "dismiss-download" }
   | { type: "error"; message: string };
 
 const initialSignPdfState: SignPdfState = {
@@ -88,6 +89,8 @@ function signPdfReducer(
       return { ...state, isProcessing: false };
     case "download-ready":
       return { ...state, downloadResult: action.result };
+    case "dismiss-download":
+      return { ...state, downloadResult: null };
     case "error":
       return { ...state, errorMessage: action.message };
     default:
@@ -367,7 +370,10 @@ export function SignPdfTool() {
       errorMessage={errorMessage}
       resultBanner={
         downloadResult ? (
-          <DownloadReadyBanner downloadResult={downloadResult} />
+          <DownloadReadyBanner
+            downloadResult={downloadResult}
+            onDismiss={() => dispatch({ type: "dismiss-download" })}
+          />
         ) : null
       }
     />
