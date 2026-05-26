@@ -21,6 +21,7 @@ export interface ToolWorkspaceProps {
   emptyTitle: string;
   emptyDescription: string;
   emptyActionLabel: string;
+  emptyExtraAction?: ReactNode;
   emptyHint?: string;
   preview: ReactNode;
   sidebarTitle: string;
@@ -44,6 +45,7 @@ export function ToolWorkspace({
   emptyTitle,
   emptyDescription,
   emptyActionLabel,
+  emptyExtraAction,
   emptyHint,
   preview,
   sidebarTitle,
@@ -139,6 +141,7 @@ export function ToolWorkspace({
           title={emptyTitle}
           description={emptyDescription}
           actionLabel={emptyActionLabel}
+          extraAction={emptyExtraAction}
           hint={emptyHint}
           accept={accept}
           multiple={multiple}
@@ -156,6 +159,7 @@ interface EmptyDropzoneProps {
   title: string;
   description: string;
   actionLabel: string;
+  extraAction?: ReactNode;
   hint?: string;
   accept: string;
   multiple: boolean;
@@ -169,6 +173,7 @@ function EmptyDropzone({
   title,
   description,
   actionLabel,
+  extraAction,
   hint,
   accept,
   multiple,
@@ -263,16 +268,19 @@ function EmptyDropzone({
             {description}
           </p>
         </div>
-        <Button
-          type="button"
-          variant="brand"
-          size="lg"
-          onClick={onOpenPicker}
-          disabled={isProcessing}
-        >
-          <Upload data-icon="inline-start" aria-hidden />
-          {actionLabel}
-        </Button>
+        <div className="flex w-full flex-col justify-center gap-2 sm:w-auto sm:flex-row">
+          <Button
+            type="button"
+            variant="brand"
+            size="lg"
+            onClick={onOpenPicker}
+            disabled={isProcessing}
+          >
+            <Upload data-icon="inline-start" aria-hidden />
+            {actionLabel}
+          </Button>
+          {extraAction}
+        </div>
         {hint ? (
           <p className="text-xs text-muted-foreground sm:text-sm">{hint}</p>
         ) : null}
