@@ -4,26 +4,27 @@ import {
   useMemo,
   useRef,
   useState,
+  type ChangeEvent,
   type RefObject,
 } from "react";
 import {
   Camera,
   CheckCircle2,
   Crop,
+  Download,
   FileImage,
   Image as ImageIcon,
   Loader2,
   RefreshCw,
   Sparkles,
+  Upload,
   X,
 } from "lucide-react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { ToolWorkspace } from "@/features/pdf-tools/shared/ToolWorkspace";
-import {
-  DownloadReadyBanner,
-  type DownloadResult,
-} from "@/features/pdf-tools/shared/DownloadReadyBanner";
+import type { DownloadResult } from "@/features/pdf-tools/shared/DownloadReadyBanner";
+import { sanitizeDownloadFileName } from "@/features/pdf-tools/shared/downloadFileName";
 import {
   createPdfOperationWorker,
   runPdfOperation,
@@ -69,6 +70,7 @@ export function ScanToPdfTool() {
   );
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const imagesRef = useRef<ScanImage[]>([]);
   const downloadResultRef = useRef<DownloadResult | null>(null);
 
@@ -150,6 +152,10 @@ export function ScanToPdfTool() {
     }
   }, []);
 
+  const openFilePicker = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
   const prepareFiles = useCallback(
     async (files: File[]) => {
       if (files.length === 0) {
@@ -182,6 +188,17 @@ export function ScanToPdfTool() {
       }
     },
     [clearDownloadResult, scanOptions],
+  );
+
+  const handleInputChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files ?? []);
+      event.target.value = "";
+      if (files.length > 0) {
+        void prepareFiles(files);
+      }
+    },
+    [prepareFiles],
   );
 
   const captureImage = useCallback(async () => {
@@ -330,111 +347,158 @@ export function ScanToPdfTool() {
   }
 
   const pageCountLabel =
-    images.length === 1 ? "1 pagina" : `${images.length} paginas`;
-  const primaryAction = (
-    <Button
-      type="button"
-      variant="brand"
-      size="lg"
-      onClick={handleGeneratePdf}
-      disabled={images.length === 0 || isBusy}
-      className="w-full"
-    >
-      {isBusy ? (
-        <Loader2
-          className="animate-spin"
-          data-icon="inline-start"
-          aria-hidden
-        />
-      ) : (
-        <FileImage data-icon="inline-start" aria-hidden />
-      )}
-      {isPreparingImages
-        ? "Mejorando escaneos"
-        : isGeneratingPdf
-          ? "Generando PDF"
-          : `Crear PDF con ${pageCountLabel}`}
-    </Button>
-  );
-
-  const secondaryAction =
-    !stream && images.length > 0 ? (
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={startCamera}
-        disabled={isBusy}
-        className="w-full"
-      >
-        <Camera data-icon="inline-start" aria-hidden />
-        Añadir con cámara
-      </Button>
-    ) : null;
+    images.length === 1 ? "1 página" : `${images.length} páginas`;
+  const hasContent = stream !== null || images.length > 0;
 
   return (
-    <ToolWorkspace
-      accept="image/*"
-      multiple={true}
-      hasContent={stream !== null || images.length > 0}
-      isProcessing={isBusy}
-      onFilesSelected={(files) => void prepareFiles(files)}
-      emptyTitle="Escanear a PDF"
-      emptyDescription="Toma fotos o sube imagenes; la hoja se recorta, endereza y mejora localmente."
-      emptyActionLabel="Subir fotos"
-      emptyExtraAction={
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          onClick={startCamera}
-          disabled={isBusy}
-          className="w-full sm:w-auto"
-        >
-          <Camera data-icon="inline-start" aria-hidden />
-          Abrir cámara
-        </Button>
-      }
-      emptyHint="El procesamiento es 100% local."
-      preview={
-        <ScanPreview
-          stream={stream}
-          videoRef={videoRef}
-          images={images}
-          selectedImage={selectedImage}
-          scanOptions={scanOptions}
-          isPreparingImages={isPreparingImages}
-          onCapture={() => void captureImage()}
-          onStopCamera={stopCamera}
-          onStartCamera={startCamera}
-          onSelectImage={setSelectedImageId}
-          onRemoveImage={removeImage}
-        />
-      }
-      sidebarTitle="Escanear a PDF"
-      sidebarDescription="Crea un PDF limpio desde fotos tomadas con la camara o subidas."
-      sidebar={
-        <ScanSidebar
-          imageCount={images.length}
-          scanOptions={scanOptions}
-          isBusy={isBusy}
-          onScanOptionsChange={setScanOptions}
-          onReprocessImages={() => void reprocessImages()}
-        />
-      }
-      primaryAction={primaryAction}
-      secondaryAction={secondaryAction}
-      errorMessage={errorMessage}
-      resultBanner={
-        downloadResult ? (
-          <DownloadReadyBanner
+    <div className="flex h-full min-w-0 flex-col overflow-y-auto lg:overflow-hidden">
+      <input
+        ref={fileInputRef}
+        className="sr-only"
+        type="file"
+        accept="image/*"
+        multiple
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={handleInputChange}
+      />
+
+      {hasContent ? (
+        <div className="grid grid-cols-1 gap-4 pb-28 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-0 lg:pb-0 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="flex min-w-0 flex-col gap-3 lg:min-h-0 lg:overflow-hidden lg:pr-6">
+            <ScanPreview
+              stream={stream}
+              videoRef={videoRef}
+              images={images}
+              selectedImage={selectedImage}
+              scanOptions={scanOptions}
+              isPreparingImages={isPreparingImages}
+              isGeneratingPdf={isGeneratingPdf}
+              isBusy={isBusy}
+              onCapture={() => void captureImage()}
+              onStopCamera={stopCamera}
+              onStartCamera={startCamera}
+              onGeneratePdf={() => void handleGeneratePdf()}
+              onSelectImage={setSelectedImageId}
+              onRemoveImage={removeImage}
+            />
+
+            {errorMessage ? (
+              <Alert variant="destructive" className="shrink-0">
+                <AlertTitle>No se pudo continuar</AlertTitle>
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            <details className="rounded-lg border border-border bg-card p-3 lg:hidden">
+              <summary className="cursor-pointer text-sm font-semibold text-foreground">
+                Ajustes de escaneo
+              </summary>
+              <div className="mt-4">
+                <ScanSidebar
+                  imageCount={images.length}
+                  scanOptions={scanOptions}
+                  isBusy={isBusy}
+                  onScanOptionsChange={setScanOptions}
+                  onReprocessImages={() => void reprocessImages()}
+                />
+              </div>
+            </details>
+          </div>
+
+          <aside className="hidden min-w-0 flex-col gap-4 border-l border-border pl-6 lg:flex lg:min-h-0 lg:overflow-hidden">
+            <header className="shrink-0">
+              <h2 className="text-base font-semibold leading-tight">
+                Escanear a PDF
+              </h2>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                Crea un PDF limpio desde fotos tomadas con la cámara o subidas.
+              </p>
+            </header>
+
+            {downloadResult ? (
+              <ScanDownloadPanel
+                downloadResult={downloadResult}
+                onDismiss={clearDownloadResult}
+              />
+            ) : null}
+
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              <ScanSidebar
+                imageCount={images.length}
+                scanOptions={scanOptions}
+                isBusy={isBusy}
+                onScanOptionsChange={setScanOptions}
+                onReprocessImages={() => void reprocessImages()}
+              />
+            </div>
+
+            <footer className="flex shrink-0 flex-col gap-2 border-t border-border pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={openFilePicker}
+                disabled={isBusy}
+                className="w-full"
+              >
+                <Upload data-icon="inline-start" aria-hidden />
+                Subir más imágenes
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={startCamera}
+                disabled={isBusy}
+                className="w-full"
+              >
+                <Camera data-icon="inline-start" aria-hidden />
+                Añadir con cámara
+              </Button>
+              <Button
+                type="button"
+                variant="brand"
+                size="lg"
+                onClick={handleGeneratePdf}
+                disabled={images.length === 0 || isBusy}
+                className="w-full"
+              >
+                <PrimaryActionIcon
+                  isBusy={isBusy}
+                  isPreparingImages={isPreparingImages}
+                />
+                {isPreparingImages
+                  ? "Mejorando escaneos"
+                  : isGeneratingPdf
+                    ? "Generando PDF"
+                    : `Crear PDF con ${pageCountLabel}`}
+              </Button>
+            </footer>
+          </aside>
+
+          <MobileScanActionBar
+            imageCount={images.length}
+            stream={stream}
             downloadResult={downloadResult}
-            onDismiss={clearDownloadResult}
+            isBusy={isBusy}
+            isPreparingImages={isPreparingImages}
+            isGeneratingPdf={isGeneratingPdf}
+            onOpenCamera={startCamera}
+            onOpenFilePicker={openFilePicker}
+            onGeneratePdf={() => void handleGeneratePdf()}
+            onDismissDownload={clearDownloadResult}
           />
-        ) : null
-      }
-      addMore={stream ? undefined : { label: "Subir más imágenes" }}
-    />
+        </div>
+      ) : (
+        <ScanEmptyState
+          isBusy={isBusy}
+          errorMessage={errorMessage}
+          onOpenCamera={startCamera}
+          onOpenFilePicker={openFilePicker}
+        />
+      )}
+    </div>
   );
 }
 
@@ -445,9 +509,12 @@ interface ScanPreviewProps {
   selectedImage: ScanImage | null;
   scanOptions: ScanProcessingOptions;
   isPreparingImages: boolean;
+  isGeneratingPdf: boolean;
+  isBusy: boolean;
   onCapture: () => void;
   onStopCamera: () => void;
   onStartCamera: () => void;
+  onGeneratePdf: () => void;
   onSelectImage: (imageId: string) => void;
   onRemoveImage: (imageId: string) => void;
 }
@@ -459,16 +526,19 @@ function ScanPreview({
   selectedImage,
   scanOptions,
   isPreparingImages,
+  isGeneratingPdf,
+  isBusy,
   onCapture,
   onStopCamera,
   onStartCamera,
+  onGeneratePdf,
   onSelectImage,
   onRemoveImage,
 }: ScanPreviewProps) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
       {stream ? (
-        <div className="relative min-h-[320px] flex-1 overflow-hidden rounded-lg border border-border bg-neutral-950 shadow-sm">
+        <div className="relative min-h-[calc(100svh-18rem)] flex-1 overflow-hidden rounded-lg border border-border bg-neutral-950 shadow-sm lg:min-h-[320px]">
           <video
             ref={videoRef}
             autoPlay
@@ -501,10 +571,30 @@ function ScanPreview({
                 <Camera className="size-7" aria-hidden />
               )}
             </Button>
+            {images.length > 0 ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onGeneratePdf}
+                disabled={isBusy}
+                className="border-white/15 bg-black/55 text-white hover:bg-black/70"
+              >
+                {isGeneratingPdf ? (
+                  <Loader2
+                    className="animate-spin"
+                    data-icon="inline-start"
+                    aria-hidden
+                  />
+                ) : (
+                  <FileImage data-icon="inline-start" aria-hidden />
+                )}
+                PDF
+              </Button>
+            ) : null}
           </div>
         </div>
       ) : selectedImage ? (
-        <div className="relative min-h-[320px] flex-1 overflow-hidden rounded-lg border border-border bg-panel">
+        <div className="relative min-h-[calc(100svh-19rem)] flex-1 overflow-hidden rounded-lg border border-border bg-panel lg:min-h-[320px]">
           <img
             src={selectedImage.previewUrl}
             alt={`Pagina escaneada desde ${selectedImage.originalName}`}
@@ -585,6 +675,280 @@ function ScanPreview({
         </div>
       ) : null}
     </div>
+  );
+}
+
+interface ScanEmptyStateProps {
+  isBusy: boolean;
+  errorMessage: string | null;
+  onOpenCamera: () => void;
+  onOpenFilePicker: () => void;
+}
+
+function ScanEmptyState({
+  isBusy,
+  errorMessage,
+  onOpenCamera,
+  onOpenFilePicker,
+}: ScanEmptyStateProps) {
+  return (
+    <div className="flex min-h-full items-center justify-center px-3 py-6 sm:px-6">
+      <div className="flex w-full max-w-md flex-col gap-5">
+        <div className="flex flex-col gap-2">
+          <div className="flex size-12 items-center justify-center rounded-lg bg-brand/10 text-brand">
+            <Camera className="size-6" aria-hidden />
+          </div>
+          <h2 className="text-2xl font-semibold leading-tight">
+            Escanear a PDF
+          </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Usa la cámara como escáner: detecta la hoja, corrige perspectiva y
+            mejora la imagen antes de armar el PDF.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Button
+            type="button"
+            variant="brand"
+            size="lg"
+            onClick={onOpenCamera}
+            disabled={isBusy}
+            className="h-14 w-full"
+          >
+            <Camera data-icon="inline-start" aria-hidden />
+            Escanear con cámara
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            onClick={onOpenFilePicker}
+            disabled={isBusy}
+            className="h-14 w-full"
+          >
+            <Upload data-icon="inline-start" aria-hidden />
+            Subir fotos
+          </Button>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Todo el procesamiento ocurre en tu navegador.
+        </p>
+
+        {errorMessage ? (
+          <Alert variant="destructive">
+            <AlertTitle>No se pudo continuar</AlertTitle>
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+interface MobileScanActionBarProps {
+  imageCount: number;
+  stream: MediaStream | null;
+  downloadResult: DownloadResult | null;
+  isBusy: boolean;
+  isPreparingImages: boolean;
+  isGeneratingPdf: boolean;
+  onOpenCamera: () => void;
+  onOpenFilePicker: () => void;
+  onGeneratePdf: () => void;
+  onDismissDownload: () => void;
+}
+
+function MobileScanActionBar({
+  imageCount,
+  stream,
+  downloadResult,
+  isBusy,
+  isPreparingImages,
+  isGeneratingPdf,
+  onOpenCamera,
+  onOpenFilePicker,
+  onGeneratePdf,
+  onDismissDownload,
+}: MobileScanActionBarProps) {
+  if (downloadResult) {
+    return (
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-16px_40px_rgba(0,0,0,0.35)] backdrop-blur lg:hidden">
+        <ScanDownloadPanel
+          downloadResult={downloadResult}
+          onDismiss={onDismissDownload}
+          compact
+        />
+      </div>
+    );
+  }
+
+  if (stream || imageCount === 0) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-16px_40px_rgba(0,0,0,0.35)] backdrop-blur lg:hidden">
+      <div className="mx-auto flex max-w-xl flex-col gap-2">
+        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+          <span>
+            {imageCount === 1
+              ? "1 página lista"
+              : `${imageCount} páginas listas`}
+          </span>
+          <span>{isPreparingImages ? "Mejorando..." : "Listo para PDF"}</span>
+        </div>
+        <div className="grid grid-cols-[auto_auto_minmax(0,1fr)] gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={onOpenCamera}
+            disabled={isBusy}
+            aria-label="Añadir con cámara"
+          >
+            <Camera aria-hidden />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={onOpenFilePicker}
+            disabled={isBusy}
+            aria-label="Subir fotos"
+          >
+            <Upload aria-hidden />
+          </Button>
+          <Button
+            type="button"
+            variant="brand"
+            size="lg"
+            onClick={onGeneratePdf}
+            disabled={imageCount === 0 || isBusy}
+            className="h-12 min-w-0 px-3 text-base"
+          >
+            <PrimaryActionIcon
+              isBusy={isBusy}
+              isPreparingImages={isPreparingImages}
+            />
+            <span className="truncate">
+              {isPreparingImages
+                ? "Mejorando"
+                : isGeneratingPdf
+                  ? "Generando"
+                  : "Crear PDF"}
+            </span>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface ScanDownloadPanelProps {
+  downloadResult: DownloadResult;
+  onDismiss: () => void;
+  compact?: boolean;
+}
+
+function ScanDownloadPanel({
+  downloadResult,
+  onDismiss,
+  compact = false,
+}: ScanDownloadPanelProps) {
+  const fileNameInputRef = useRef<HTMLInputElement>(null);
+
+  function resolveDownloadFileName(): string {
+    const draftName =
+      fileNameInputRef.current?.value ?? downloadResult.fileName;
+    return sanitizeDownloadFileName(
+      draftName,
+      downloadResult.fileName,
+      downloadResult.mimeType,
+    );
+  }
+
+  return (
+    <section
+      role="status"
+      className={cn(
+        "relative rounded-lg border border-brand/55 bg-brand/10 text-foreground shadow-sm",
+        compact ? "p-3" : "p-4",
+      )}
+    >
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="absolute right-2 top-2 size-8 rounded-full"
+        aria-label="Cerrar descarga"
+        onClick={onDismiss}
+      >
+        <X className="size-4" aria-hidden />
+      </Button>
+      <div className="flex flex-col gap-3 pr-8">
+        <div className="flex items-start gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-brand text-brand-foreground">
+            <Download className="size-5" aria-hidden />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-base font-semibold leading-tight">PDF listo</h3>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Tu escaneo ya se puede descargar.
+            </p>
+          </div>
+        </div>
+
+        {!compact ? (
+          <label className="flex flex-col gap-1.5 text-left">
+            <span className="text-xs font-medium text-muted-foreground">
+              Nombre del archivo
+            </span>
+            <input
+              ref={fileNameInputRef}
+              type="text"
+              defaultValue={downloadResult.fileName}
+              className="field-input h-10 rounded-md px-2.5 text-sm text-foreground"
+              aria-label="Nombre del archivo a descargar"
+            />
+          </label>
+        ) : null}
+
+        <Button asChild variant="brand" size="lg" className="w-full">
+          <a
+            href={downloadResult.url}
+            download={downloadResult.fileName}
+            onClick={(event) => {
+              event.currentTarget.download = resolveDownloadFileName();
+            }}
+          >
+            <Download data-icon="inline-start" aria-hidden />
+            Descargar PDF
+          </a>
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function PrimaryActionIcon({
+  isBusy,
+  isPreparingImages,
+}: {
+  isBusy: boolean;
+  isPreparingImages: boolean;
+}) {
+  if (isBusy) {
+    return (
+      <Loader2 className="animate-spin" data-icon="inline-start" aria-hidden />
+    );
+  }
+
+  return isPreparingImages ? (
+    <Sparkles data-icon="inline-start" aria-hidden />
+  ) : (
+    <FileImage data-icon="inline-start" aria-hidden />
   );
 }
 
